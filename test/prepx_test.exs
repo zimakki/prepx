@@ -2,8 +2,6 @@ defmodule PrepxTest do
   use ExUnit.Case
   doctest Prepx
 
-  alias Prepx.Core
-
   @output_filename "llm_context.txt"
 
   setup do

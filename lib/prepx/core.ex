@@ -123,7 +123,7 @@ defmodule Prepx.Core do
   defp do_format_tree([{name, :file} | rest], prefix, is_last_parent) do
     connector = if is_last_parent && Enum.empty?(rest), do: "└── ", else: "├── "
     line = prefix <> connector <> name
-    children_prefix = prefix <> if is_last_parent && Enum.empty?(rest), do: "    ", else: "│   "
+    prefix <> if is_last_parent && Enum.empty?(rest), do: "    ", else: "│   "
     [line | do_format_tree(rest, prefix, is_last_parent)]
   end
 
