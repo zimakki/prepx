@@ -1,12 +1,20 @@
 defmodule Prepx.Core do
   @moduledoc """
   Core functionality for the Prepx tool.
+
+  This module handles the processing of Git repositories to generate
+  a consolidated text file for LLM context.
   """
 
   @output_filename "llm_context.txt"
 
   @doc """
   Process the current working directory and create the LLM context file.
+
+  ## Returns
+
+  * `{:ok, output_path}` - The path to the created context file
+  * `{:error, reason}` - An error message if processing failed
   """
   def process do
     with {:ok, repo_root} <- get_git_repo_root(),
@@ -23,6 +31,11 @@ defmodule Prepx.Core do
 
   @doc """
   Get the root directory of the Git repository.
+
+  ## Returns
+
+  * `{:ok, repo_root}` - The absolute path to the Git repository root
+  * `{:error, reason}` - An error message if the directory is not a Git repository
   """
   def get_git_repo_root do
     case System.cmd("git", ["rev-parse", "--show-toplevel"], stderr_to_stdout: true) do
@@ -33,6 +46,15 @@ defmodule Prepx.Core do
 
   @doc """
   Get files tracked by Git, respecting .gitignore rules.
+
+  ## Parameters
+
+  * `repo_root` - The absolute path to the Git repository root
+
+  ## Returns
+
+  * `{:ok, file_list}` - A list of tracked files (relative to repo_root)
+  * `{:error, reason}` - An error message if Git command failed
   """
   def get_git_tracked_files(repo_root) do
     case System.cmd("git", ["ls-files", "-co", "--exclude-standard"], cd: repo_root) do
@@ -47,6 +69,17 @@ defmodule Prepx.Core do
 
   @doc """
   Filter files to only those within the current working directory.
+
+  ## Parameters
+
+  * `files` - List of files relative to the repository root
+  * `repo_root` - The absolute path to the Git repository root
+  * `cwd` - The current working directory
+
+  ## Returns
+
+  A list of files filtered to only those in the current working directory,
+  with paths adjusted to be relative to the current directory.
   """
   def filter_files_by_cwd(files, repo_root, cwd) do
     rel_cwd = Path.relative_to(cwd, repo_root)
@@ -63,6 +96,14 @@ defmodule Prepx.Core do
 
   @doc """
   Build a tree structure representing the directory hierarchy.
+
+  ## Parameters
+
+  * `files` - List of files to organize into a tree structure
+
+  ## Returns
+
+  * `{:ok, tree}` - A map representing the directory tree
   """
   def build_file_tree(files) do
     tree =
@@ -89,6 +130,18 @@ defmodule Prepx.Core do
 
   @doc """
   Generate the output file with directory summary and file contents.
+
+  ## Parameters
+
+  * `file_tree` - The directory tree structure
+  * `files` - List of files to include in the output
+  * `cwd` - The current working directory
+  * `repo_root` - The absolute path to the Git repository root
+
+  ## Returns
+
+  * `{:ok, output_path}` - The path to the created context file
+  * `{:error, reason}` - An error message if file creation failed
   """
   def generate_output_file(file_tree, files, cwd, repo_root) do
     output_path = Path.join(cwd, @output_filename)
@@ -107,6 +160,14 @@ defmodule Prepx.Core do
 
   @doc """
   Generate a text-based tree summary of the directory structure.
+
+  ## Parameters
+
+  * `file_tree` - The directory tree structure
+
+  ## Returns
+
+  A list of strings representing the directory structure as a tree.
   """
   def generate_dir_summary(file_tree) do
     ["# Directory Structure\n\n"] ++ format_tree(file_tree, "", true)
@@ -133,6 +194,16 @@ defmodule Prepx.Core do
 
   @doc """
   Generate the content section with file contents and markers.
+
+  ## Parameters
+
+  * `files` - List of files to include in the output
+  * `cwd` - The current working directory
+  * `repo_root` - The absolute path to the Git repository root
+
+  ## Returns
+
+  A list of strings containing the file contents with appropriate markers.
   """
   def generate_file_contents(files, cwd, repo_root) do
     Enum.flat_map(files, fn file ->
@@ -172,10 +243,8 @@ defmodule Prepx.Core do
     end
   end
 
-  @doc """
-  Detect if a file is likely binary by checking for null bytes.
-  """
-  def binary_file?(path) do
+  @doc false
+  defp binary_file?(path) do
     if File.regular?(path) do
       case File.read(path) do
         {:ok, content} ->
