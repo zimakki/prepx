@@ -4,7 +4,6 @@ defmodule Prepx.Core do
   """
 
   @output_filename "llm_context.txt"
-  @binary_detection_size 1024
 
   @doc """
   Process the current working directory and create the LLM context file.
@@ -40,7 +39,7 @@ defmodule Prepx.Core do
       {files, 0} ->
         file_list = files |> String.split("\n", trim: true)
         {:ok, file_list}
-      
+
       {error, _} ->
         {:error, "Failed to get Git tracked files: #{String.trim(error)}"}
     end
@@ -52,7 +51,7 @@ defmodule Prepx.Core do
   def filter_files_by_cwd(files, repo_root, cwd) do
     rel_cwd = Path.relative_to(cwd, repo_root)
     rel_cwd = if rel_cwd == "", do: ".", else: rel_cwd
-    
+
     files
     |> Enum.filter(fn file ->
       String.starts_with?(file, rel_cwd) or rel_cwd == "."
@@ -66,13 +65,13 @@ defmodule Prepx.Core do
   Build a tree structure representing the directory hierarchy.
   """
   def build_file_tree(files) do
-    tree = 
+    tree =
       Enum.reduce(files, %{}, fn file, acc ->
         path_parts = Path.split(file) |> Enum.filter(&(&1 != "."))
-        
+
         put_in_nested(acc, path_parts, file)
       end)
-      
+
     {:ok, tree}
   end
 
@@ -93,13 +92,13 @@ defmodule Prepx.Core do
   """
   def generate_output_file(file_tree, files, cwd, repo_root) do
     output_path = Path.join(cwd, @output_filename)
-    
+
     contents = [
       generate_dir_summary(file_tree),
       "\n\n",
       generate_file_contents(files, cwd, repo_root)
     ]
-    
+
     case File.write(output_path, IO.iodata_to_binary(contents)) do
       :ok -> {:ok, output_path}
       {:error, reason} -> {:error, "Failed to write output file: #{reason}"}
@@ -115,14 +114,14 @@ defmodule Prepx.Core do
 
   defp format_tree(tree, prefix, is_last) do
     keys = Map.keys(tree) |> Enum.reject(&(&1 == :__file__)) |> Enum.sort()
-    
+
     Enum.flat_map(Enum.with_index(keys), fn {key, index} ->
       is_last_key = index == length(keys) - 1
       current_prefix = if is_last, do: "└── ", else: "├── "
       next_prefix = if is_last, do: "    ", else: "│   "
-      
+
       subtree = Map.get(tree, key)
-      
+
       if is_map(subtree) and map_size(subtree) > 0 and not Map.has_key?(subtree, :__file__) do
         [prefix <> current_prefix <> key <> "\n"] ++
           format_tree(subtree, prefix <> next_prefix, is_last_key)
@@ -135,49 +134,59 @@ defmodule Prepx.Core do
   @doc """
   Generate the content section with file contents and markers.
   """
-  def generate_file_contents(files, _cwd, repo_root) do
+  def generate_file_contents(files, cwd, repo_root) do
     Enum.flat_map(files, fn file ->
       # Ensure we have the correct absolute path to the file
-      absolute_path = Path.join(repo_root, file)
-      
+      # For files in current directory when running from a subdirectory
+      absolute_path =
+        if Path.dirname(file) == "." do
+          Path.join(cwd, file)
+        else
+          Path.join(repo_root, file)
+        end
+
       cond do
         not File.exists?(absolute_path) ->
           ["--- ERROR READING FILE: #{file} (file not found) ---\n\n"]
-          
-        is_binary_file?(absolute_path) ->
+
+        binary_file?(absolute_path) ->
           ["--- BINARY FILE (SKIPPED): #{file} ---\n\n"]
-          
+
         true ->
-          case File.read(absolute_path) do
-            {:ok, content} ->
-              [
-                "--- START FILE: #{file} ---\n",
-                content,
-                "\n--- END FILE: #{file} ---\n\n"
-              ]
-            
-            {:error, reason} ->
-              ["--- ERROR READING FILE: #{file} (#{reason}) ---\n\n"]
-          end
+          read_text_file(absolute_path, file)
       end
     end)
+  end
+
+  defp read_text_file(absolute_path, file) do
+    case File.read(absolute_path) do
+      {:ok, content} ->
+        [
+          "--- START FILE: #{file} ---\n",
+          content,
+          "\n--- END FILE: #{file} ---\n\n"
+        ]
+
+      {:error, reason} ->
+        ["--- ERROR READING FILE: #{file} (#{reason}) ---\n\n"]
+    end
   end
 
   @doc """
   Detect if a file is likely binary by checking for null bytes.
   """
-  def is_binary_file?(path) do
-    if not File.regular?(path) do
-      true
-    else
+  def binary_file?(path) do
+    if File.regular?(path) do
       case File.read(path) do
         {:ok, content} ->
           String.contains?(content, <<0>>)
-        
+
         {:error, _} ->
           # If we can't read it, treat as binary to be safe
           true
       end
+    else
+      true
     end
   end
 end
