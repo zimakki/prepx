@@ -30,11 +30,72 @@ mix escript.build
 ```
 
 3. The executable `prepx` will be generated in the project directory
-4. Move it to a directory in your PATH to use it from anywhere:
+
+### Adding to PATH
+
+To use `prepx` from anywhere on your system, you need to add it to your PATH. Here are instructions for different operating systems:
+
+#### macOS and Linux
+
+Method 1: Copy to a directory already in your PATH:
 
 ```bash
-# Example (you may need sudo depending on your setup)
-cp prepx /usr/local/bin/
+# Copy to /usr/local/bin (might require sudo)
+sudo cp prepx /usr/local/bin/
+
+# Or to your user's bin directory if it exists and is in your PATH
+cp prepx ~/bin/
+```
+
+Method 2: Create a symbolic link:
+
+```bash
+# Create a symbolic link in /usr/local/bin
+sudo ln -s /full/path/to/your/prepx /usr/local/bin/prepx
+```
+
+Method 3: Add the directory containing prepx to your PATH (in your shell profile):
+
+```bash
+# For bash (add to ~/.bash_profile or ~/.bashrc)
+echo 'export PATH="/path/to/directory/containing/prepx:$PATH"' >> ~/.bash_profile
+source ~/.bash_profile
+
+# For zsh (add to ~/.zshrc)
+echo 'export PATH="~/code/zimakki/prepx/:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+#### Windows
+
+Method 1: Copy to a directory in your PATH:
+
+```powershell
+# Copy to a directory that's already in your PATH, for example:
+copy prepx.bat C:\Windows\System32\
+```
+
+Method 2: Add the directory to your PATH environment variable:
+
+1. Right-click on 'This PC' or 'My Computer' and select 'Properties'
+2. Click on 'Advanced system settings'
+3. Click on 'Environment Variables'
+4. Under 'System variables' or 'User variables', find the 'Path' variable, select it and click 'Edit'
+5. Click 'New' and add the full path to the directory containing your prepx executable
+6. Click 'OK' to close all dialogs
+
+Method 3: Create a batch file wrapper and place it in a directory in your PATH:
+
+```batch
+@echo off
+rem Save this as prepx.bat in a directory that's in your PATH
+"C:\path\to\your\prepx" %*
+```
+
+To verify that `prepx` is correctly added to your PATH, open a new terminal or command prompt window and run:
+
+```bash
+prepx --version
 ```
 
 ## Usage

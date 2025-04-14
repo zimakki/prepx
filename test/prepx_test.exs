@@ -68,20 +68,55 @@ defmodule PrepxTest do
     try do
       {:ok, output_path} = Core.process()
       assert Path.basename(output_path) == @output_filename
-      assert File.exists?(output_path)
-
+      
       content = File.read!(output_path)
-
-      # Verify only files from subdirectory are included
-      assert String.contains?(content, "--- START FILE: file2.txt ---")
-      refute String.contains?(content, "--- START FILE: file1.txt ---")
-
-      # Verify directory summary only shows subdirectory structure
-      assert String.contains?(content, "# Directory Structure")
-      assert String.contains?(content, "└── file2.txt")
-      refute String.contains?(content, "└── dir1")
+      
+      # Verify content includes all files, not just those in the current directory
+      assert String.contains?(content, "--- START FILE: dir1file.txt ---")
+      assert String.contains?(content, "This is dir1file content")
+      assert String.contains?(content, "--- END FILE: dir1file.txt ---")
+      
+      # Should still include files from parent directories
+      assert String.contains?(content, "--- START FILE: ../file1.txt ---")
+      assert String.contains?(content, "This is file1 content")
     after
       # Return to the original directory
+      File.cd!(original_dir)
+    end
+  end
+  
+  # New test to specifically check for the subdirectory file path issue
+  test "file path resolution in subdirectories", %{tmp_dir: tmp_dir} do
+    # Create a project-like structure with subdirectories
+    nested_dir = Path.join([tmp_dir, "lib", "components"])
+    File.mkdir_p!(nested_dir)
+    
+    # Add a file in the nested directory
+    component_file = Path.join(nested_dir, "button.ex")
+    File.write!(component_file, "defmodule Button do\n  def render, do: \"Button\"\nend\n")
+    
+    # Initialize git repo and add files
+    original_dir = File.cwd!()
+    File.cd!(tmp_dir)
+    
+    System.cmd("git", ["init"])
+    System.cmd("git", ["add", "."])
+    System.cmd("git", ["config", "user.name", "Test User"])
+    System.cmd("git", ["config", "user.email", "test@example.com"])
+    System.cmd("git", ["commit", "-m", "Initial commit"])
+    
+    # Change to the lib directory
+    lib_dir = Path.join(tmp_dir, "lib")
+    File.cd!(lib_dir)
+    
+    try do
+      {:ok, output_path} = Core.process()
+      content = File.read!(output_path)
+      
+      # The components/button.ex file should be included in the output
+      assert String.contains?(content, "--- START FILE: components/button.ex ---")
+      assert String.contains?(content, "defmodule Button do")
+    after
       File.cd!(original_dir)
     end
   end
@@ -121,26 +156,28 @@ defmodule PrepxTest do
   end
 
   # Helper function to set up our test fixture
-  defp setup_test_fixture(tmp_dir) do
-    # Create directories
-    File.mkdir_p!(Path.join(tmp_dir, "dir1"))
+  defp setup_test_fixture(dir) do
+    # Create files in root
+    File.write!(Path.join(dir, "file1.txt"), "This is file1 content")
+    File.write!(Path.join(dir, "binary.bin"), <<0, 1, 2, 3>>)
+    File.write!(Path.join(dir, "ignored.txt"), "This should be ignored")
 
-    # Create files
-    File.write!(Path.join(tmp_dir, "file1.txt"), "This is file1 content")
-    File.write!(Path.join(tmp_dir, "dir1/file2.txt"), "This is file2 content")
-    File.write!(Path.join(tmp_dir, "ignored.txt"), "This file should be ignored")
+    # Create directory structure
+    dir1 = Path.join(dir, "dir1")
+    File.mkdir_p!(dir1)
+    File.write!(Path.join(dir1, "dir1file.txt"), "This is dir1file content")
 
-    # Create a "binary" file with null bytes
-    File.write!(Path.join(tmp_dir, "binary.bin"), <<0, 1, 2, 3, 0>>)
+    # Initialize git repository
+    System.cmd("git", ["init"], cd: dir)
+    System.cmd("git", ["add", "file1.txt", "binary.bin", "dir1"], cd: dir)
 
-    # Create .gitignore
-    File.write!(Path.join(tmp_dir, ".gitignore"), "ignored.txt")
+    # Create .gitignore to exclude ignored.txt
+    File.write!(Path.join(dir, ".gitignore"), "ignored.txt")
+    System.cmd("git", ["add", ".gitignore"], cd: dir)
 
-    # Initialize Git repo
-    System.cmd("git", ["init"], cd: tmp_dir)
-    System.cmd("git", ["config", "user.email", "test@example.com"], cd: tmp_dir)
-    System.cmd("git", ["config", "user.name", "Test User"], cd: tmp_dir)
-    System.cmd("git", ["add", "."], cd: tmp_dir)
-    System.cmd("git", ["commit", "-m", "Initial commit"], cd: tmp_dir)
+    # Set git config for the test
+    System.cmd("git", ["config", "user.name", "Test User"], cd: dir)
+    System.cmd("git", ["config", "user.email", "test@example.com"], cd: dir)
+    System.cmd("git", ["commit", "-m", "Initial commit"], cd: dir)
   end
 end

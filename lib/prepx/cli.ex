@@ -16,7 +16,7 @@ defmodule Prepx.CLI do
   * `args` - List of command-line arguments (currently not used)
   """
   def main(args) do
-    {_opts, _args, _invalid} = OptionParser.parse(args)
+    {_opts, _args, _invalid} = OptionParser.parse(args, strict: [])
 
     case Prepx.Core.process() do
       {:ok, output_path} ->
