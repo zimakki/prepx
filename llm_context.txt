@@ -1,0 +1,2945 @@
+Directory Tree:
+```
+├── .formatter.exs
+├── .gitignore
+├── .mise.toml
+├── README.md
+├── lib
+│   ├── prepx
+│   │   ├── cli.ex
+│   │   ├── core.ex
+│   │   ├── file_system_behaviour.ex
+│   │   ├── file_system_real.ex
+│   │   ├── git.ex
+│   ├── prepx.ex
+├── llm_context.txt
+├── mix.exs
+├── mix.lock
+├── prepx
+└── test
+    ├── prepx_test.exs
+    └── test_helper.exs
+```
+
+File Contents:
+--- File: lib/prepx/file_system_behaviour.ex ---
+```
+defmodule Prepx.FileSystemBehaviour do
+  @moduledoc """
+  Defines the behaviour for interacting with the file system.
+  This allows for mocking file operations during testing.
+  """
+
+  @callback cwd() :: {:ok, String.t()} | {:error, atom()}
+  @callback read!(path :: String.t()) :: String.t() | no_return()
+  @callback write!(path :: String.t(), content :: String.t()) :: :ok | no_return()
+  @callback regular?(path :: String.t()) :: boolean()
+end
+
+```
+--- File: lib/prepx/file_system_real.ex ---
+```
+defmodule Prepx.FileSystemReal do
+  @moduledoc """
+  The real implementation of the FileSystemBehaviour using Elixir's File module.
+  """
+
+  @behaviour Prepx.FileSystemBehaviour
+
+  @impl Prepx.FileSystemBehaviour
+  def cwd, do: File.cwd()
+
+  @impl Prepx.FileSystemBehaviour
+  def read!(path), do: File.read!(path)
+
+  @impl Prepx.FileSystemBehaviour
+  def write!(path, content), do: File.write!(path, content)
+
+  @impl Prepx.FileSystemBehaviour
+  def regular?(path), do: File.regular?(path)
+end
+
+```
+--- File: lib/prepx/git.ex ---
+```
+defmodule Prepx.Git do
+  @moduledoc """
+  Handles interactions with the Git command-line tool.
+  """
+
+  @doc """
+  Get the root directory of the Git repository.
+
+  ## Returns
+
+  * `{:ok, repo_root}` - The absolute path to the Git repository root
+  * `{:error, reason}` - An error message if the directory is not a Git repository
+  """
+  def get_git_repo_root do
+    case System.cmd("git", ["rev-parse", "--show-toplevel"], stderr_to_stdout: true) do
+      {root, 0} -> {:ok, String.trim(root)}
+      {error, _} -> {:error, "Not a Git repository: #{String.trim(error)}"}
+    end
+  end
+
+  @doc """
+  Get files tracked by Git, respecting .gitignore rules.
+
+  ## Parameters
+
+  * `repo_root` - The absolute path to the Git repository root
+
+  ## Returns
+
+  * `{:ok, file_list}` - A list of tracked files (relative to repo_root)
+  * `{:error, reason}` - An error message if Git command failed
+  """
+  def get_git_tracked_files(repo_root) do
+    case System.cmd("git", ["ls-files", "-co", "--exclude-standard"], cd: repo_root) do
+      {files, 0} ->
+        file_list = files |> String.split("\n", trim: true)
+        {:ok, file_list}
+
+      {error, _} ->
+        {:error, "Failed to list Git files: #{String.trim(error)}"}
+    end
+  end
+end
+
+```
+--- File: llm_context.txt ---
+```
+Directory Tree:
+```
+├── .formatter.exs
+├── .gitignore
+├── .mise.toml
+├── README.md
+├── lib
+│   ├── prepx
+│   │   ├── cli.ex
+│   │   ├── core.ex
+│   │   ├── file_system_behaviour.ex
+│   │   ├── file_system_real.ex
+│   │   ├── git.ex
+│   ├── prepx.ex
+├── llm_context.txt
+├── mix.exs
+├── mix.lock
+├── prepx
+└── test
+    ├── prepx_test.exs
+    └── test_helper.exs
+```
+
+File Contents:
+--- File: lib/prepx/file_system_behaviour.ex ---
+```
+defmodule Prepx.FileSystemBehaviour do
+  @moduledoc """
+  Defines the behaviour for interacting with the file system.
+  This allows for mocking file operations during testing.
+  """
+
+  @callback cwd() :: {:ok, String.t()} | {:error, atom()}
+  @callback read!(path :: String.t()) :: String.t() | no_return()
+  @callback write!(path :: String.t(), content :: String.t()) :: :ok | no_return()
+  @callback regular?(path :: String.t()) :: boolean()
+end
+
+```
+--- File: lib/prepx/file_system_real.ex ---
+```
+defmodule Prepx.FileSystemReal do
+  @moduledoc """
+  The real implementation of the FileSystemBehaviour using Elixir's File module.
+  """
+
+  @behaviour Prepx.FileSystemBehaviour
+
+  @impl Prepx.FileSystemBehaviour
+  def cwd, do: File.cwd()
+
+  @impl Prepx.FileSystemBehaviour
+  def read!(path), do: File.read!(path)
+
+  @impl Prepx.FileSystemBehaviour
+  def write!(path, content), do: File.write!(path, content)
+
+  @impl Prepx.FileSystemBehaviour
+  def regular?(path), do: File.regular?(path)
+end
+
+```
+--- File: lib/prepx/git.ex ---
+```
+defmodule Prepx.Git do
+  @moduledoc """
+  Handles interactions with the Git command-line tool.
+  """
+
+  @doc """
+  Get the root directory of the Git repository.
+
+  ## Returns
+
+  * `{:ok, repo_root}` - The absolute path to the Git repository root
+  * `{:error, reason}` - An error message if the directory is not a Git repository
+  """
+  def get_git_repo_root do
+    case System.cmd("git", ["rev-parse", "--show-toplevel"], stderr_to_stdout: true) do
+      {root, 0} -> {:ok, String.trim(root)}
+      {error, _} -> {:error, "Not a Git repository: #{String.trim(error)}"}
+    end
+  end
+
+  @doc """
+  Get files tracked by Git, respecting .gitignore rules.
+
+  ## Parameters
+
+  * `repo_root` - The absolute path to the Git repository root
+
+  ## Returns
+
+  * `{:ok, file_list}` - A list of tracked files (relative to repo_root)
+  * `{:error, reason}` - An error message if Git command failed
+  """
+  def get_git_tracked_files(repo_root) do
+    case System.cmd("git", ["ls-files", "-co", "--exclude-standard"], cd: repo_root) do
+      {files, 0} ->
+        file_list = files |> String.split("\n", trim: true)
+        {:ok, file_list}
+
+      {error, _} ->
+        {:error, "Failed to list Git files: #{String.trim(error)}"}
+    end
+  end
+end
+
+```
+--- File: llm_context.txt ---
+```
+Directory Tree:
+```
+├── .formatter.exs
+├── .gitignore
+├── .mise.toml
+├── README.md
+├── lib
+│   ├── prepx
+│   │   ├── cli.ex
+│   │   ├── core.ex
+│   │   ├── file_system_behaviour.ex
+│   │   ├── file_system_real.ex
+│   │   ├── git.ex
+│   ├── prepx.ex
+├── mix.exs
+├── mix.lock
+├── prepx
+└── test
+    ├── prepx_test.exs
+    └── test_helper.exs
+```
+
+File Contents:
+--- File: lib/prepx/file_system_behaviour.ex ---
+```
+defmodule Prepx.FileSystemBehaviour do
+  @moduledoc """
+  Defines the behaviour for interacting with the file system.
+  This allows for mocking file operations during testing.
+  """
+
+  @callback cwd() :: {:ok, String.t()} | {:error, atom()}
+  @callback read!(path :: String.t()) :: String.t() | no_return()
+  @callback write!(path :: String.t(), content :: String.t()) :: :ok | no_return()
+  @callback regular?(path :: String.t()) :: boolean()
+end
+
+```
+--- File: lib/prepx/file_system_real.ex ---
+```
+defmodule Prepx.FileSystemReal do
+  @moduledoc """
+  The real implementation of the FileSystemBehaviour using Elixir's File module.
+  """
+
+  @behaviour Prepx.FileSystemBehaviour
+
+  @impl Prepx.FileSystemBehaviour
+  def cwd, do: File.cwd()
+
+  @impl Prepx.FileSystemBehaviour
+  def read!(path), do: File.read!(path)
+
+  @impl Prepx.FileSystemBehaviour
+  def write!(path, content), do: File.write!(path, content)
+
+  @impl Prepx.FileSystemBehaviour
+  def regular?(path), do: File.regular?(path)
+end
+
+```
+--- File: lib/prepx/git.ex ---
+```
+defmodule Prepx.Git do
+  @moduledoc """
+  Handles interactions with the Git command-line tool.
+  """
+
+  @doc """
+  Get the root directory of the Git repository.
+
+  ## Returns
+
+  * `{:ok, repo_root}` - The absolute path to the Git repository root
+  * `{:error, reason}` - An error message if the directory is not a Git repository
+  """
+  def get_git_repo_root do
+    case System.cmd("git", ["rev-parse", "--show-toplevel"], stderr_to_stdout: true) do
+      {root, 0} -> {:ok, String.trim(root)}
+      {error, _} -> {:error, "Not a Git repository: #{String.trim(error)}"}
+    end
+  end
+
+  @doc """
+  Get files tracked by Git, respecting .gitignore rules.
+
+  ## Parameters
+
+  * `repo_root` - The absolute path to the Git repository root
+
+  ## Returns
+
+  * `{:ok, file_list}` - A list of tracked files (relative to repo_root)
+  * `{:error, reason}` - An error message if Git command failed
+  """
+  def get_git_tracked_files(repo_root) do
+    case System.cmd("git", ["ls-files", "-co", "--exclude-standard"], cd: repo_root) do
+      {files, 0} ->
+        file_list = files |> String.split("\n", trim: true)
+        {:ok, file_list}
+
+      {error, _} ->
+        {:error, "Failed to list Git files: #{String.trim(error)}"}
+    end
+  end
+end
+
+```
+--- File: .formatter.exs ---
+```
+# Used by "mix format"
+[
+  inputs: ["{mix,.formatter}.exs", "{config,lib,test}/**/*.{ex,exs}"]
+]
+
+```
+--- File: .gitignore ---
+```
+# The directory Mix will write compiled artifacts to.
+/_build/
+
+# If you run "mix test --cover", coverage assets end up here.
+/cover/
+
+# The directory Mix downloads your dependencies sources to.
+/deps/
+
+# Where third-party dependencies like ExDoc output generated docs.
+/doc/
+
+# If the VM crashes, it generates a dump, let's ignore it too.
+erl_crash.dump
+
+# Also ignore archive artifacts (built via "mix archive.build").
+*.ez
+
+# Ignore package tarball (built via "mix hex.build").
+prepx-*.tar
+
+# Temporary files, for example, from tests.
+/tmp/
+
+```
+--- File: .mise.toml ---
+```
+[tools]
+elixir = "1.18.3-otp-27"
+erlang = "27.3"
+nodejs = '20.19.0'
+
+```
+--- File: README.md ---
+```
+# Prepx
+
+Prepx is a command-line interface (CLI) tool that helps developers consolidate the codebase of a project (or a specific subdirectory within it) into a single text file. The primary use case for this consolidated file is to provide context to Large Language Models (LLMs).
+
+## Features
+
+- **Git Aware**: Only includes files that are tracked or untracked by Git, respecting `.gitignore` rules
+- **Flexible Scope**: Can be run from any directory within a Git repository
+- **Directory Summary**: Provides a tree-like summary of the directory structure
+- **Binary File Handling**: Detects and skips binary files
+- **Clear Formatting**: Clearly marks file content with start and end markers
+
+## Installation
+
+### Prerequisites
+
+- Erlang/OTP (to run the escript)
+- Git (must be available in your PATH)
+- Elixir ~> 1.18 (for development only)
+
+### Building from Source
+
+1. Clone this repository
+2. Build the escript:
+
+```bash
+cd prepx
+mix deps.get
+mix escript.build
+```
+
+3. The executable `prepx` will be generated in the project directory
+
+### Adding to PATH
+
+To use `prepx` from anywhere on your system, you need to add it to your PATH. Here are instructions for different operating systems:
+
+#### macOS and Linux
+
+Method 1: Copy to a directory already in your PATH:
+
+```bash
+# Copy to /usr/local/bin (might require sudo)
+sudo cp prepx /usr/local/bin/
+
+# Or to your user's bin directory if it exists and is in your PATH
+cp prepx ~/bin/
+```
+
+Method 2: Create a symbolic link:
+
+```bash
+# Create a symbolic link in /usr/local/bin
+sudo ln -s /full/path/to/your/prepx /usr/local/bin/prepx
+```
+
+Method 3: Add the directory containing prepx to your PATH (in your shell profile):
+
+```bash
+# For bash (add to ~/.bash_profile or ~/.bashrc)
+echo 'export PATH="/path/to/directory/containing/prepx:$PATH"' >> ~/.bash_profile
+source ~/.bash_profile
+
+# For zsh (add to ~/.zshrc)
+echo 'export PATH="~/code/zimakki/prepx/:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+#### Windows
+
+Method 1: Copy to a directory in your PATH:
+
+```powershell
+# Copy to a directory that's already in your PATH, for example:
+copy prepx.bat C:\Windows\System32\
+```
+
+Method 2: Add the directory to your PATH environment variable:
+
+1. Right-click on 'This PC' or 'My Computer' and select 'Properties'
+2. Click on 'Advanced system settings'
+3. Click on 'Environment Variables'
+4. Under 'System variables' or 'User variables', find the 'Path' variable, select it and click 'Edit'
+5. Click 'New' and add the full path to the directory containing your prepx executable
+6. Click 'OK' to close all dialogs
+
+Method 3: Create a batch file wrapper and place it in a directory in your PATH:
+
+```batch
+@echo off
+rem Save this as prepx.bat in a directory that's in your PATH
+"C:\path\to\your\prepx" %*
+```
+
+To verify that `prepx` is correctly added to your PATH, open a new terminal or command prompt window and run:
+
+```bash
+prepx --version
+```
+
+## Usage
+
+Simply navigate to any directory within a Git repository and run:
+
+```bash
+prepx
+```
+
+This will create a file named `llm_context.txt` in your current working directory containing:
+
+1. A tree-like summary of the directory structure
+2. The full content of all text files within the current directory (and subdirectories)
+3. Markers for binary files (which are skipped)
+
+### Example Output
+
+```
+# Directory Structure
+
+└── lib
+    ├── prepx
+    │   ├── cli.ex
+    │   └── core.ex
+    └── prepx.ex
+
+--- START FILE: lib/prepx.ex ---
+defmodule Prepx do
+  @moduledoc """
+  Prepx is a CLI tool that consolidates a Git repository's codebase...
+  """
+end
+--- END FILE: lib/prepx.ex ---
+
+--- START FILE: lib/prepx/cli.ex ---
+defmodule Prepx.CLI do
+  ...
+end
+--- END FILE: lib/prepx/cli.ex ---
+
+--- BINARY FILE (SKIPPED): assets/image.png ---
+```
+
+## Development
+
+### Running Tests
+
+```bash
+mix test
+```
+
+### Project Structure
+
+- `lib/prepx.ex` - Main module documentation
+- `lib/prepx/cli.ex` - Command-line interface implementation
+- `lib/prepx/core.ex` - Core functionality for file processing and output generation
+- `test/` - Test suite and fixtures
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+```
+--- File: lib/prepx.ex ---
+```
+defmodule Prepx do
+  @moduledoc """
+  Prepx is a CLI tool that consolidates a Git repository's codebase into a single text file,
+  primarily for providing context to Large Language Models (LLMs).
+
+  The tool respects .gitignore rules and works from any directory within a Git repository.
+
+  ## Features
+
+  * Generates a directory structure summary
+  * Includes file contents with clear markers
+  * Skips binary files
+  * Respects .gitignore exclusions
+  * Works from any subdirectory in a Git repository
+  """
+
+  @doc """
+  Returns the current version of the application.
+  """
+  def version do
+    Application.spec(:prepx, :vsn)
+  end
+end
+
+```
+--- File: lib/prepx/cli.ex ---
+```
+defmodule Prepx.CLI do
+  @moduledoc """
+  Command-line interface for Prepx.
+
+  This module provides the entry point for the escript binary,
+  processing command-line arguments and delegating to the Core module.
+  """
+
+  @doc """
+  The main entry point for the escript.
+
+  Processes command-line arguments and executes the core functionality.
+
+  ## Parameters
+
+  * `_args` - List of command-line arguments (currently not used)
+  """
+  def main(_args) do
+    IO.puts("Processing repository...")
+
+    case Prepx.Core.process(Prepx.FileSystemReal) do
+      {:ok, output_path} ->
+        IO.puts("Successfully created LLM context file: #{output_path}")
+        System.halt(0)
+
+      {:error, reason} ->
+        IO.puts(:stderr, "Error: #{reason}")
+        System.halt(1)
+    end
+  end
+end
+
+```
+--- File: lib/prepx/core.ex ---
+```
+defmodule Prepx.Core do
+  @moduledoc """
+  Core functionality for the Prepx tool.
+
+  This module handles the processing of Git repositories to generate
+  a consolidated text file for LLM context.
+  """
+
+  @output_filename "llm_context.txt"
+
+  @doc """
+  Process the current working directory and create the LLM context file.
+
+  Requires a module implementing FileSystemBehaviour.
+
+  ## Returns
+
+  * `{:ok, output_path}` - The path to the created context file
+  * `{:error, reason}` - An error message if processing failed
+  """
+  def process(fs_module \\ Prepx.FileSystemReal) when is_atom(fs_module) do
+    with {:ok, repo_root} <- Prepx.Git.get_git_repo_root(),
+         # Use injected module
+         {:ok, cwd} <- fs_module.cwd(),
+         {:ok, tracked_files} <- Prepx.Git.get_git_tracked_files(repo_root),
+         # Get all files relative to cwd for content generation
+         relative_files_for_content = filter_files_by_cwd(tracked_files, repo_root, cwd),
+         # Filter files for directory tree (only current dir and subdirs)
+         relative_files_for_tree =
+           Enum.reject(relative_files_for_content, &String.starts_with?(&1, "../")),
+         # Build tree using only files at/below cwd
+         {:ok, file_tree} <- build_file_tree(relative_files_for_tree),
+         # Generate output using the full list (including ../) for file content
+         # Pass fs_module
+         {:ok, output_path} <-
+           generate_output_file(fs_module, file_tree, relative_files_for_content, cwd, repo_root) do
+      {:ok, output_path}
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # --- filter_files_by_cwd remains unchanged for now, it only uses Path ---
+  @doc """
+  Convert all tracked file paths (relative to repo root) to paths relative to the current working directory.
+  """
+  def filter_files_by_cwd(files, repo_root, cwd) do
+    expanded_cwd = Path.expand(cwd)
+
+    Enum.map(files, fn file_relative_to_repo ->
+      calculate_relative_path(file_relative_to_repo, repo_root, expanded_cwd, cwd)
+    end)
+  end
+
+  # --- Helper function to calculate relative path --- 
+  defp calculate_relative_path(file_relative_to_repo, repo_root, expanded_cwd, cwd) do
+    abs_path = Path.join(repo_root, file_relative_to_repo)
+    expanded_abs_path = Path.expand(abs_path)
+
+    relative_path = Path.relative_to(expanded_abs_path, expanded_cwd)
+
+    # Fix for Path.relative_to returning absolute paths in some cases (e.g., macOS tmp dirs)
+    if String.starts_with?(relative_path, "/") do
+      # If result is absolute, check if original repo path contains the cwd's dir name
+      if String.contains?(file_relative_to_repo, Path.basename(cwd)) do
+        # Heuristic failed (e.g., file in subdir with same name as parent dir part)
+        # Fallback to the absolute path from Path.relative_to
+        relative_path
+      else
+        # Heuristic: Assume it's one level up if original path doesn't contain cwd base name
+        "../" <> Path.basename(file_relative_to_repo)
+      end
+    else
+      # Path.relative_to returned a relative path, use it
+      relative_path
+    end
+  end
+
+  # --- build_file_tree remains unchanged, it only uses Path/String/Map ---
+  @doc """
+  Builds a nested map representing the file tree structure.
+  Input paths must be relative to the CWD and not contain '../'.
+  """
+  def build_file_tree(relative_files) do
+    tree =
+      Enum.reduce(relative_files, %{}, fn file_path, acc ->
+        parts = Path.split(file_path)
+        build_nested_map(acc, parts)
+      end)
+
+    {:ok, tree}
+  rescue
+    e -> {:error, "Failed to build file tree: #{inspect(e)}"}
+  end
+
+  defp build_nested_map(current_map, []) do
+    # Should not happen with valid file paths
+    current_map
+  end
+
+  defp build_nested_map(current_map, [file]) do
+    Map.put(current_map, file, :file)
+  end
+
+  defp build_nested_map(current_map, [dir | rest]) do
+    sub_tree = Map.get(current_map, dir, %{})
+    updated_sub_tree = build_nested_map(sub_tree, rest)
+    Map.put(current_map, dir, updated_sub_tree)
+  end
+
+  # --- format_tree remains unchanged, it only formats the map ---
+  @doc """
+  Formats the file tree map into a string list for display.
+  """
+  def format_tree(tree) do
+    tree |> Map.to_list() |> Enum.sort() |> do_format_tree("", true)
+  end
+
+  defp do_format_tree([], _prefix, _is_last) do
+    []
+  end
+
+  defp do_format_tree([{name, :file} | rest], prefix, is_last_parent) do
+    connector = if is_last_parent && Enum.empty?(rest), do: "└── ", else: "├── "
+    line = prefix <> connector <> name
+    children_prefix = prefix <> if is_last_parent && Enum.empty?(rest), do: "    ", else: "│   "
+    [line | do_format_tree(rest, prefix, is_last_parent)]
+  end
+
+  defp do_format_tree([{name, subtree} | rest], prefix, is_last_parent) when is_map(subtree) do
+    is_last_child = Enum.empty?(rest)
+    connector = if is_last_child, do: "└── ", else: "├── "
+    line = prefix <> connector <> name
+    children_prefix = prefix <> if is_last_child, do: "    ", else: "│   "
+
+    children_lines =
+      subtree |> Map.to_list() |> Enum.sort() |> do_format_tree(children_prefix, is_last_child)
+
+    [line | children_lines] ++ do_format_tree(rest, prefix, is_last_parent)
+  end
+
+  # --- generate_output_file needs fs_module ---
+  defp generate_output_file(fs_module, file_tree, relative_files_for_content, cwd, repo_root) do
+    output_path = Path.join(cwd, @output_filename)
+    formatted_tree = format_tree(file_tree)
+    # Generate content for all files, including those potentially outside cwd (using ../)
+    file_contents =
+      generate_file_contents(fs_module, relative_files_for_content, cwd, repo_root)
+
+    output_content =
+      ["Directory Tree:", "```", formatted_tree, "```", "\nFile Contents:", file_contents]
+      |> List.flatten()
+      |> Enum.join("\n")
+
+    try do
+      _ = fs_module.write!(output_path, output_content)
+      {:ok, output_path}
+    rescue
+      e in File.Error ->
+        {:error, "Failed to write output file #{output_path}: #{inspect(e)}"}
+    end
+  end
+
+  # --- generate_file_contents needs fs_module ---
+  defp generate_file_contents(fs_module, relative_files, cwd, repo_root) do
+    Enum.map(relative_files, fn relative_file ->
+      # Resolve the absolute path correctly for reading
+      absolute_path = resolve_file_path(relative_file, cwd, repo_root)
+
+      if binary_file?(fs_module, absolute_path) do
+        ["--- File: #{relative_file} (Binary file ignored) ---"]
+      else
+        # Assign result to variable first, then return
+        result =
+          try do
+            # Use injected module
+            content = fs_module.read!(absolute_path)
+            ["--- File: #{relative_file} ---", "```", content, "```"]
+          rescue
+            e in File.Error ->
+              # IO.inspect(e, label: "File read error for #{absolute_path}")
+              ["--- File: #{relative_file} (Error reading file: #{inspect(e)}) ---"]
+          end
+
+        # End of try/rescue
+
+        # Return the result variable
+        result
+      end
+    end)
+  end
+
+  # --- resolve_file_path remains unchanged, uses Path ---
+  @doc false
+  defp resolve_file_path(relative_file, cwd, _repo_root) do
+    # If relative_file starts with ../, Path.expand/Path.join handles it correctly relative to cwd
+    Path.expand(Path.join(cwd, relative_file))
+  end
+
+  # --- binary_file? needs fs_module ---
+  defp binary_file?(fs_module, file_path) do
+    # First check if it's a regular file, directories/symlinks aren't binary content files
+    # Use injected module
+    if fs_module.regular?(file_path) do
+      # It's a regular file, try reading it
+      try do
+        # Read up to 1024 bytes
+        # Use injected module
+        chunk = fs_module.read!(file_path)
+        # Check for null byte
+        String.contains?(chunk, "\0")
+      rescue
+        # If we can't even read the file, treat it as binary/unreadable
+        File.Error -> true
+      end
+
+      # End of try/rescue
+    else
+      # Not a regular file (dir, symlink etc.) -> treat as binary/ignorable
+      # Treat non-regular files (like dirs, symlinks that might be broken) as ignorable/binary
+      true
+    end
+
+    # End of if/else
+  end
+
+  # End of defp
+end
+
+```
+--- File: mix.exs ---
+```
+defmodule Prepx.MixProject do
+  use Mix.Project
+
+  def project do
+    [
+      app: :prepx,
+      version: "0.1.0",
+      elixir: "~> 1.18",
+      start_permanent: Mix.env() == :prod,
+      deps: deps(),
+      escript: escript()
+    ]
+  end
+
+  # Run "mix help compile.app" to learn about applications.
+  def application do
+    [
+      extra_applications: [:logger]
+    ]
+  end
+
+  # Run "mix help deps" to learn about dependencies.
+  defp deps do
+    [
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
+      # {:dep_from_hexpm, "~> 0.3.0"},
+      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
+    ]
+  end
+
+  defp escript do
+    [main_module: Prepx.CLI]
+  end
+end
+
+```
+--- File: mix.lock ---
+```
+%{
+  "bunt": {:hex, :bunt, "1.0.0", "081c2c665f086849e6d57900292b3a161727ab40431219529f13c4ddcf3e7a44", [:mix], [], "hexpm", "dc5f86aa08a5f6fa6b8096f0735c4e76d54ae5c9fa2c143e5a1fc7c1cd9bb6b5"},
+  "credo": {:hex, :credo, "1.7.11", "d3e805f7ddf6c9c854fd36f089649d7cf6ba74c42bc3795d587814e3c9847102", [:mix], [{:bunt, "~> 0.2.1 or ~> 1.0", [hex: :bunt, repo: "hexpm", optional: false]}, {:file_system, "~> 0.2 or ~> 1.0", [hex: :file_system, repo: "hexpm", optional: false]}, {:jason, "~> 1.0", [hex: :jason, repo: "hexpm", optional: false]}], "hexpm", "56826b4306843253a66e47ae45e98e7d284ee1f95d53d1612bb483f88a8cf219"},
+  "file_system": {:hex, :file_system, "1.1.0", "08d232062284546c6c34426997dd7ef6ec9f8bbd090eb91780283c9016840e8f", [:mix], [], "hexpm", "bfcf81244f416871f2a2e15c1b515287faa5db9c6bcf290222206d120b3d43f6"},
+  "jason": {:hex, :jason, "1.4.4", "b9226785a9aa77b6857ca22832cffa5d5011a667207eb2a0ad56adb5db443b8a", [:mix], [{:decimal, "~> 1.0 or ~> 2.0", [hex: :decimal, repo: "hexpm", optional: true]}], "hexpm", "c5eb0cab91f094599f94d55bc63409236a8ec69a21a67814529e8d5f6cc90b3b"},
+}
+
+```
+--- File: prepx (Binary file ignored) ---
+--- File: test/prepx_test.exs ---
+```
+defmodule PrepxTest do
+  use ExUnit.Case
+  doctest Prepx
+
+  alias Prepx.Core
+
+  @output_filename "llm_context.txt"
+
+  setup do
+    # Create a temporary directory for our test repo
+    tmp_dir = Path.join(System.tmp_dir!(), "prepx_test_#{:rand.uniform(1_000_000)}")
+    File.mkdir_p!(tmp_dir)
+
+    # Set up test fixture structure
+    setup_test_fixture(tmp_dir)
+
+    on_exit(fn ->
+      # Clean up temporary directory after test
+      File.rm_rf!(tmp_dir)
+
+      # Also clean up any output files in CWD if they exist
+      output_file = Path.join(File.cwd!(), @output_filename)
+      if File.exists?(output_file), do: File.rm!(output_file)
+    end)
+
+    %{tmp_dir: tmp_dir}
+  end
+
+  @tag :tmp_dir
+  test "process from repo root", %{tmp_dir: tmp_dir} do
+    # Run from repo root
+    {:ok, _} = Prepx.CLI.main([tmp_dir])
+
+    output_path = Path.join(tmp_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Verify directory summary
+    assert String.contains?(content, "Directory Tree:")
+    assert String.contains?(content, "├── .gitignore")
+    assert String.contains?(content, "├── binary.bin")
+    assert String.contains?(content, "├── dir1")
+    assert String.contains?(content, "│   ├── dir1file.txt")
+    assert String.contains?(content, "└── file1.txt")
+
+    # Verify file markers and content
+    assert String.contains?(content, "--- File: .gitignore ---")
+    assert String.contains?(content, "--- File: binary.bin (Binary file ignored) ---")
+    assert String.contains?(content, "--- File: dir1/dir1file.txt ---")
+    assert String.contains?(content, "--- File: file1.txt ---")
+
+    # Verify actual content (example)
+    assert String.contains?(content, "This is file1 content")
+    assert String.contains?(content, "This is dir1file content")
+  end
+
+  @tag :tmp_dir
+  test "process from subdirectory", %{tmp_dir: tmp_dir} do
+    # Run from subdirectory
+    subdir_path = Path.join(tmp_dir, "dir1")
+    {:ok, _} = Prepx.CLI.main([subdir_path])
+
+    output_path = Path.join(subdir_path, @output_filename)
+    content = File.read!(output_path)
+
+    # Split content into tree and file contents sections
+    [tree_section, file_contents_section] = String.split(content, "File Contents:\n", parts: 2)
+
+    # Verify content includes all files, not just those in the current directory
+    assert String.contains?(tree_section, "Directory Tree:")
+    assert String.contains?(tree_section, "└── dir1file.txt")
+    # Should not show parent items in tree
+    refute String.contains?(tree_section, "../file1.txt")
+    refute String.contains?(tree_section, "../.gitignore")
+
+    assert String.contains?(file_contents_section, "File Contents:")
+    # Should still contain content from parent dirs, marked relative
+    assert String.contains?(file_contents_section, "--- File: ../.gitignore ---")
+
+    assert String.contains?(
+             file_contents_section,
+             "--- File: ../binary.bin (Binary file ignored) ---"
+           )
+
+    assert String.contains?(file_contents_section, "--- File: dir1file.txt ---")
+    assert String.contains?(file_contents_section, "--- File: ../file1.txt ---")
+
+    # Verify actual content (example)
+    assert String.contains?(file_contents_section, "This is file1 content")
+    assert String.contains?(file_contents_section, "This is dir1file content")
+  end
+
+  @tag :tmp_dir
+  test "file path resolution in subdirectories", %{tmp_dir: tmp_dir} do
+    # Setup complex structure
+    setup_repo(tmp_dir)
+    components_dir = Path.join(tmp_dir, "components")
+
+    # Run from components subdirectory
+    {:ok, _} = Prepx.CLI.main([components_dir])
+
+    output_path = Path.join(components_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Split content into tree and file contents sections
+    [tree_section, file_contents_section] = String.split(content, "File Contents:\n", parts: 2)
+
+    # Check Tree (should only contain button.ex relative to components_dir)
+    assert String.contains?(tree_section, "Directory Tree:")
+    assert String.contains?(tree_section, "└── button.ex")
+    refute String.contains?(tree_section, "../file1.txt")
+
+    # Check Contents (should include files from parent, marked relative)
+    assert String.contains?(file_contents_section, "File Contents:")
+    assert String.contains?(file_contents_section, "--- File: ../.gitignore ---")
+
+    assert String.contains?(
+             file_contents_section,
+             "--- File: ../binary.bin (Binary file ignored) ---"
+           )
+
+    # Test deeper nesting
+    assert String.contains?(file_contents_section, "--- File: ../dir1/dir1file.txt ---")
+    assert String.contains?(file_contents_section, "--- File: ../file1.txt ----")
+    assert String.contains?(file_contents_section, "--- File: button.ex ---")
+
+    # Check actual content
+    assert String.contains?(file_contents_section, "defmodule Button do")
+    assert String.contains?(file_contents_section, "This is file1 content")
+    assert String.contains?(file_contents_section, "ignored.txt")
+  end
+
+  test "gitignore exclusion", %{tmp_dir: tmp_dir} do
+    # Run from repo root
+    {:ok, _} = Prepx.CLI.main([tmp_dir])
+
+    output_path = Path.join(tmp_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Verify ignored file is not included as a file content
+    refute String.contains?(content, "--- File: ignored.txt ---")
+    refute String.contains?(content, "This file should be ignored")
+  end
+
+  test "binary file detection", %{tmp_dir: tmp_dir} do
+    # Run from repo root
+    {:ok, _} = Prepx.CLI.main([tmp_dir])
+
+    output_path = Path.join(tmp_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Check tree includes binary file
+    assert String.contains?(content, "├── binary.bin")
+    # Check contents section marks binary file correctly
+    assert String.contains?(content, "--- File: binary.bin (Binary file ignored) ---")
+    # Ensure content of binary file is not included
+    refute String.contains?(content, "<<0, 1, 2>>")
+  end
+
+  @tag :tmp_dir
+  test "empty directory handling", %{tmp_dir: tmp_dir} do
+    # Create an empty directory
+    empty_dir = Path.join(tmp_dir, "empty_dir")
+    File.mkdir!(empty_dir)
+
+    # Run prepx from the parent directory
+    {:ok, _} = Prepx.CLI.main([tmp_dir])
+
+    output_path = Path.join(tmp_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Verify that the empty directory is included in the directory tree
+    assert String.contains?(content, "├── empty_dir")
+    # Verify that there is no file content for the empty directory
+    refute String.contains?(content, "--- File: empty_dir ---")
+  end
+
+  @tag :tmp_dir
+  test "deeply nested directories", %{tmp_dir: tmp_dir} do
+    # Create a deeply nested directory structure
+    nested_dir = Path.join(tmp_dir, "dir1", "dir2", "dir3")
+    File.mkdir_p!(nested_dir)
+    File.write!(Path.join(nested_dir, "nested_file.txt"), "This is a nested file.")
+
+    # Run prepx from the parent directory
+    {:ok, _} = Prepx.CLI.main([tmp_dir])
+
+    output_path = Path.join(tmp_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Verify that the nested directory structure is correctly displayed in the tree
+    assert String.contains?(content, "│   └── dir1")
+    assert String.contains?(content, "│       └── dir2")
+    assert String.contains?(content, "│           └── dir3")
+    assert String.contains?(content, "│               └── nested_file.txt")
+    # Verify that the content of the nested file is included
+    assert String.contains?(content, "--- File: dir1/dir2/dir3/nested_file.txt ---")
+    assert String.contains?(content, "This is a nested file.")
+  end
+
+  @tag :tmp_dir
+  test "file content encoding", %{tmp_dir: tmp_dir} do
+    # Create a UTF-8 encoded file
+    utf8_file = Path.join(tmp_dir, "utf8_file.txt")
+    File.write!(utf8_file, "This is a UTF-8 file with some special characters: éàçüö.")
+
+    # Run prepx from the parent directory
+    {:ok, _} = Prepx.CLI.main([tmp_dir])
+
+    output_path = Path.join(tmp_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Verify that the UTF-8 content is correctly displayed
+    assert String.contains?(content, "--- File: utf8_file.txt ---")
+    assert String.contains?(content, "This is a UTF-8 file with some special characters: éàçüö.")
+  end
+
+  @tag :tmp_dir
+  test "git repository boundary detection", %{tmp_dir: tmp_dir} do
+    # Create a directory *outside* the git repository
+    external_dir = Path.join(Path.dirname(tmp_dir), "external_dir")
+    File.mkdir_p!(external_dir)
+    File.write!(Path.join(external_dir, "external_file.txt"), "This is an external file.")
+
+    # Run prepx from the external directory
+    {:ok, _} = Prepx.CLI.main([external_dir])
+
+    output_path = Path.join(external_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Verify that prepx still functions correctly and displays the external file
+    assert String.contains?(content, "Directory Tree:")
+    assert String.contains?(content, "└── external_file.txt")
+    assert String.contains?(content, "--- File: external_file.txt ---")
+    assert String.contains?(content, "This is an external file.")
+  end
+
+  @tag :tmp_dir
+  test "file name edge cases", %{tmp_dir: tmp_dir} do
+    # Create files with spaces and special characters in their names
+    space_file = Path.join(tmp_dir, "file with spaces.txt")
+    special_file = Path.join(tmp_dir, "file!@#$%^&*.txt")
+    File.write!(space_file, "This file has spaces in its name.")
+    File.write!(special_file, "This file has special characters in its name.")
+
+    # Run prepx from the parent directory
+    {:ok, _} = Prepx.CLI.main([tmp_dir])
+
+    output_path = Path.join(tmp_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Verify that the files with spaces and special characters are correctly displayed
+    assert String.contains?(content, "├── file with spaces.txt")
+    assert String.contains?(content, "├── file!@#$%^&*.txt")
+    assert String.contains?(content, "--- File: file with spaces.txt ---")
+    assert String.contains?(content, "--- File: file!@#$%^&*.txt ---")
+    assert String.contains?(content, "This file has spaces in its name.")
+    assert String.contains?(content, "This file has special characters in its name.")
+  end
+
+  # Helper function to set up our test fixture
+  defp setup_test_fixture(dir) do
+    # Create files in root
+    File.write!(Path.join(dir, "file1.txt"), "This is file1 content")
+    File.write!(Path.join(dir, "binary.bin"), <<0, 1, 2, 3>>)
+    File.write!(Path.join(dir, "ignored.txt"), "This should be ignored")
+
+    # Create directory structure
+    dir1 = Path.join(dir, "dir1")
+    File.mkdir_p!(dir1)
+    File.write!(Path.join(dir1, "dir1file.txt"), "This is dir1file content")
+
+    # Initialize git repository
+    System.cmd("git", ["init"], cd: dir)
+    System.cmd("git", ["add", "file1.txt", "binary.bin", "dir1"], cd: dir)
+
+    # Create .gitignore to exclude ignored.txt
+    File.write!(Path.join(dir, ".gitignore"), "ignored.txt")
+    System.cmd("git", ["add", ".gitignore"], cd: dir)
+
+    # Set git config for the test
+    System.cmd("git", ["config", "user.name", "Test User"], cd: dir)
+    System.cmd("git", ["config", "user.email", "test@example.com"], cd: dir)
+    System.cmd("git", ["commit", "-m", "Initial commit"], cd: dir)
+  end
+
+  defp setup_repo(tmp_dir) do
+    # Create files in root
+    File.write!(Path.join(tmp_dir, "file1.txt"), "This is file1 content")
+    File.write!(Path.join(tmp_dir, "binary.bin"), <<0, 1, 2, 3>>)
+    File.write!(Path.join(tmp_dir, "ignored.txt"), "This should be ignored")
+
+    # Create directory structure
+    dir1 = Path.join(tmp_dir, "dir1")
+    File.mkdir_p!(dir1)
+    File.write!(Path.join(dir1, "dir1file.txt"), "This is dir1file content")
+
+    # Initialize git repository
+    System.cmd("git", ["init"], cd: tmp_dir)
+    System.cmd("git", ["add", "file1.txt", "binary.bin", "dir1"], cd: tmp_dir)
+
+    # Create .gitignore to exclude ignored.txt
+    File.write!(Path.join(tmp_dir, ".gitignore"), "ignored.txt")
+    System.cmd("git", ["add", ".gitignore"], cd: tmp_dir)
+
+    # Set git config for the test
+    System.cmd("git", ["config", "user.name", "Test User"], cd: tmp_dir)
+    System.cmd("git", ["config", "user.email", "test@example.com"], cd: tmp_dir)
+    System.cmd("git", ["commit", "-m", "Initial commit"], cd: tmp_dir)
+  end
+end
+
+```
+--- File: test/test_helper.exs ---
+```
+ExUnit.start()
+
+```
+```
+--- File: .formatter.exs ---
+```
+# Used by "mix format"
+[
+  inputs: ["{mix,.formatter}.exs", "{config,lib,test}/**/*.{ex,exs}"]
+]
+
+```
+--- File: .gitignore ---
+```
+# The directory Mix will write compiled artifacts to.
+/_build/
+
+# If you run "mix test --cover", coverage assets end up here.
+/cover/
+
+# The directory Mix downloads your dependencies sources to.
+/deps/
+
+# Where third-party dependencies like ExDoc output generated docs.
+/doc/
+
+# If the VM crashes, it generates a dump, let's ignore it too.
+erl_crash.dump
+
+# Also ignore archive artifacts (built via "mix archive.build").
+*.ez
+
+# Ignore package tarball (built via "mix hex.build").
+prepx-*.tar
+
+# Temporary files, for example, from tests.
+/tmp/
+
+```
+--- File: .mise.toml ---
+```
+[tools]
+elixir = "1.18.3-otp-27"
+erlang = "27.3"
+nodejs = '20.19.0'
+
+```
+--- File: README.md ---
+```
+# Prepx
+
+Prepx is a command-line interface (CLI) tool that helps developers consolidate the codebase of a project (or a specific subdirectory within it) into a single text file. The primary use case for this consolidated file is to provide context to Large Language Models (LLMs).
+
+## Features
+
+- **Git Aware**: Only includes files that are tracked or untracked by Git, respecting `.gitignore` rules
+- **Flexible Scope**: Can be run from any directory within a Git repository
+- **Directory Summary**: Provides a tree-like summary of the directory structure
+- **Binary File Handling**: Detects and skips binary files
+- **Clear Formatting**: Clearly marks file content with start and end markers
+
+## Installation
+
+### Prerequisites
+
+- Erlang/OTP (to run the escript)
+- Git (must be available in your PATH)
+- Elixir ~> 1.18 (for development only)
+
+### Building from Source
+
+1. Clone this repository
+2. Build the escript:
+
+```bash
+cd prepx
+mix deps.get
+mix escript.build
+```
+
+3. The executable `prepx` will be generated in the project directory
+
+### Adding to PATH
+
+To use `prepx` from anywhere on your system, you need to add it to your PATH. Here are instructions for different operating systems:
+
+#### macOS and Linux
+
+Method 1: Copy to a directory already in your PATH:
+
+```bash
+# Copy to /usr/local/bin (might require sudo)
+sudo cp prepx /usr/local/bin/
+
+# Or to your user's bin directory if it exists and is in your PATH
+cp prepx ~/bin/
+```
+
+Method 2: Create a symbolic link:
+
+```bash
+# Create a symbolic link in /usr/local/bin
+sudo ln -s /full/path/to/your/prepx /usr/local/bin/prepx
+```
+
+Method 3: Add the directory containing prepx to your PATH (in your shell profile):
+
+```bash
+# For bash (add to ~/.bash_profile or ~/.bashrc)
+echo 'export PATH="/path/to/directory/containing/prepx:$PATH"' >> ~/.bash_profile
+source ~/.bash_profile
+
+# For zsh (add to ~/.zshrc)
+echo 'export PATH="~/code/zimakki/prepx/:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+#### Windows
+
+Method 1: Copy to a directory in your PATH:
+
+```powershell
+# Copy to a directory that's already in your PATH, for example:
+copy prepx.bat C:\Windows\System32\
+```
+
+Method 2: Add the directory to your PATH environment variable:
+
+1. Right-click on 'This PC' or 'My Computer' and select 'Properties'
+2. Click on 'Advanced system settings'
+3. Click on 'Environment Variables'
+4. Under 'System variables' or 'User variables', find the 'Path' variable, select it and click 'Edit'
+5. Click 'New' and add the full path to the directory containing your prepx executable
+6. Click 'OK' to close all dialogs
+
+Method 3: Create a batch file wrapper and place it in a directory in your PATH:
+
+```batch
+@echo off
+rem Save this as prepx.bat in a directory that's in your PATH
+"C:\path\to\your\prepx" %*
+```
+
+To verify that `prepx` is correctly added to your PATH, open a new terminal or command prompt window and run:
+
+```bash
+prepx --version
+```
+
+## Usage
+
+Simply navigate to any directory within a Git repository and run:
+
+```bash
+prepx
+```
+
+This will create a file named `llm_context.txt` in your current working directory containing:
+
+1. A tree-like summary of the directory structure
+2. The full content of all text files within the current directory (and subdirectories)
+3. Markers for binary files (which are skipped)
+
+### Example Output
+
+```
+# Directory Structure
+
+└── lib
+    ├── prepx
+    │   ├── cli.ex
+    │   └── core.ex
+    └── prepx.ex
+
+--- START FILE: lib/prepx.ex ---
+defmodule Prepx do
+  @moduledoc """
+  Prepx is a CLI tool that consolidates a Git repository's codebase...
+  """
+end
+--- END FILE: lib/prepx.ex ---
+
+--- START FILE: lib/prepx/cli.ex ---
+defmodule Prepx.CLI do
+  ...
+end
+--- END FILE: lib/prepx/cli.ex ---
+
+--- BINARY FILE (SKIPPED): assets/image.png ---
+```
+
+## Development
+
+### Running Tests
+
+```bash
+mix test
+```
+
+### Project Structure
+
+- `lib/prepx.ex` - Main module documentation
+- `lib/prepx/cli.ex` - Command-line interface implementation
+- `lib/prepx/core.ex` - Core functionality for file processing and output generation
+- `test/` - Test suite and fixtures
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+```
+--- File: lib/prepx.ex ---
+```
+defmodule Prepx do
+  @moduledoc """
+  Prepx is a CLI tool that consolidates a Git repository's codebase into a single text file,
+  primarily for providing context to Large Language Models (LLMs).
+
+  The tool respects .gitignore rules and works from any directory within a Git repository.
+
+  ## Features
+
+  * Generates a directory structure summary
+  * Includes file contents with clear markers
+  * Skips binary files
+  * Respects .gitignore exclusions
+  * Works from any subdirectory in a Git repository
+  """
+
+  @doc """
+  Returns the current version of the application.
+  """
+  def version do
+    Application.spec(:prepx, :vsn)
+  end
+end
+
+```
+--- File: lib/prepx/cli.ex ---
+```
+defmodule Prepx.CLI do
+  @moduledoc """
+  Command-line interface for Prepx.
+
+  This module provides the entry point for the escript binary,
+  processing command-line arguments and delegating to the Core module.
+  """
+
+  @doc """
+  The main entry point for the escript.
+
+  Processes command-line arguments and executes the core functionality.
+
+  ## Parameters
+
+  * `_args` - List of command-line arguments (currently not used)
+  """
+  def main(_args) do
+    IO.puts("Processing repository...")
+
+    case Prepx.Core.process(Prepx.FileSystemReal) do
+      {:ok, output_path} ->
+        IO.puts("Successfully created LLM context file: #{output_path}")
+        System.halt(0)
+
+      {:error, reason} ->
+        IO.puts(:stderr, "Error: #{reason}")
+        System.halt(1)
+    end
+  end
+end
+
+```
+--- File: lib/prepx/core.ex ---
+```
+defmodule Prepx.Core do
+  @moduledoc """
+  Core functionality for the Prepx tool.
+
+  This module handles the processing of Git repositories to generate
+  a consolidated text file for LLM context.
+  """
+
+  @output_filename "llm_context.txt"
+
+  @doc """
+  Process the current working directory and create the LLM context file.
+
+  Requires a module implementing FileSystemBehaviour.
+
+  ## Returns
+
+  * `{:ok, output_path}` - The path to the created context file
+  * `{:error, reason}` - An error message if processing failed
+  """
+  def process(fs_module \\ Prepx.FileSystemReal) when is_atom(fs_module) do
+    with {:ok, repo_root} <- Prepx.Git.get_git_repo_root(),
+         # Use injected module
+         {:ok, cwd} <- fs_module.cwd(),
+         {:ok, tracked_files} <- Prepx.Git.get_git_tracked_files(repo_root),
+         # Get all files relative to cwd for content generation
+         relative_files_for_content = filter_files_by_cwd(tracked_files, repo_root, cwd),
+         # Filter files for directory tree (only current dir and subdirs)
+         relative_files_for_tree =
+           Enum.reject(relative_files_for_content, &String.starts_with?(&1, "../")),
+         # Build tree using only files at/below cwd
+         {:ok, file_tree} <- build_file_tree(relative_files_for_tree),
+         # Generate output using the full list (including ../) for file content
+         # Pass fs_module
+         {:ok, output_path} <-
+           generate_output_file(fs_module, file_tree, relative_files_for_content, cwd, repo_root) do
+      {:ok, output_path}
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # --- filter_files_by_cwd remains unchanged for now, it only uses Path ---
+  @doc """
+  Convert all tracked file paths (relative to repo root) to paths relative to the current working directory.
+  """
+  def filter_files_by_cwd(files, repo_root, cwd) do
+    expanded_cwd = Path.expand(cwd)
+
+    Enum.map(files, fn file_relative_to_repo ->
+      calculate_relative_path(file_relative_to_repo, repo_root, expanded_cwd, cwd)
+    end)
+  end
+
+  # --- Helper function to calculate relative path --- 
+  defp calculate_relative_path(file_relative_to_repo, repo_root, expanded_cwd, cwd) do
+    abs_path = Path.join(repo_root, file_relative_to_repo)
+    expanded_abs_path = Path.expand(abs_path)
+
+    relative_path = Path.relative_to(expanded_abs_path, expanded_cwd)
+
+    # Fix for Path.relative_to returning absolute paths in some cases (e.g., macOS tmp dirs)
+    if String.starts_with?(relative_path, "/") do
+      # If result is absolute, check if original repo path contains the cwd's dir name
+      if String.contains?(file_relative_to_repo, Path.basename(cwd)) do
+        # Heuristic failed (e.g., file in subdir with same name as parent dir part)
+        # Fallback to the absolute path from Path.relative_to
+        relative_path
+      else
+        # Heuristic: Assume it's one level up if original path doesn't contain cwd base name
+        "../" <> Path.basename(file_relative_to_repo)
+      end
+    else
+      # Path.relative_to returned a relative path, use it
+      relative_path
+    end
+  end
+
+  # --- build_file_tree remains unchanged, it only uses Path/String/Map ---
+  @doc """
+  Builds a nested map representing the file tree structure.
+  Input paths must be relative to the CWD and not contain '../'.
+  """
+  def build_file_tree(relative_files) do
+    tree =
+      Enum.reduce(relative_files, %{}, fn file_path, acc ->
+        parts = Path.split(file_path)
+        build_nested_map(acc, parts)
+      end)
+
+    {:ok, tree}
+  rescue
+    e -> {:error, "Failed to build file tree: #{inspect(e)}"}
+  end
+
+  defp build_nested_map(current_map, []) do
+    # Should not happen with valid file paths
+    current_map
+  end
+
+  defp build_nested_map(current_map, [file]) do
+    Map.put(current_map, file, :file)
+  end
+
+  defp build_nested_map(current_map, [dir | rest]) do
+    sub_tree = Map.get(current_map, dir, %{})
+    updated_sub_tree = build_nested_map(sub_tree, rest)
+    Map.put(current_map, dir, updated_sub_tree)
+  end
+
+  # --- format_tree remains unchanged, it only formats the map ---
+  @doc """
+  Formats the file tree map into a string list for display.
+  """
+  def format_tree(tree) do
+    tree |> Map.to_list() |> Enum.sort() |> do_format_tree("", true)
+  end
+
+  defp do_format_tree([], _prefix, _is_last) do
+    []
+  end
+
+  defp do_format_tree([{name, :file} | rest], prefix, is_last_parent) do
+    connector = if is_last_parent && Enum.empty?(rest), do: "└── ", else: "├── "
+    line = prefix <> connector <> name
+    children_prefix = prefix <> if is_last_parent && Enum.empty?(rest), do: "    ", else: "│   "
+    [line | do_format_tree(rest, prefix, is_last_parent)]
+  end
+
+  defp do_format_tree([{name, subtree} | rest], prefix, is_last_parent) when is_map(subtree) do
+    is_last_child = Enum.empty?(rest)
+    connector = if is_last_child, do: "└── ", else: "├── "
+    line = prefix <> connector <> name
+    children_prefix = prefix <> if is_last_child, do: "    ", else: "│   "
+
+    children_lines =
+      subtree |> Map.to_list() |> Enum.sort() |> do_format_tree(children_prefix, is_last_child)
+
+    [line | children_lines] ++ do_format_tree(rest, prefix, is_last_parent)
+  end
+
+  # --- generate_output_file needs fs_module ---
+  defp generate_output_file(fs_module, file_tree, relative_files_for_content, cwd, repo_root) do
+    output_path = Path.join(cwd, @output_filename)
+    formatted_tree = format_tree(file_tree)
+    # Generate content for all files, including those potentially outside cwd (using ../)
+    file_contents =
+      generate_file_contents(fs_module, relative_files_for_content, cwd, repo_root)
+
+    output_content =
+      ["Directory Tree:", "```", formatted_tree, "```", "\nFile Contents:", file_contents]
+      |> List.flatten()
+      |> Enum.join("\n")
+
+    try do
+      _ = fs_module.write!(output_path, output_content)
+      {:ok, output_path}
+    rescue
+      e in File.Error ->
+        {:error, "Failed to write output file #{output_path}: #{inspect(e)}"}
+    end
+  end
+
+  # --- generate_file_contents needs fs_module ---
+  defp generate_file_contents(fs_module, relative_files, cwd, repo_root) do
+    Enum.map(relative_files, fn relative_file ->
+      # Resolve the absolute path correctly for reading
+      absolute_path = resolve_file_path(relative_file, cwd, repo_root)
+
+      if binary_file?(fs_module, absolute_path) do
+        ["--- File: #{relative_file} (Binary file ignored) ---"]
+      else
+        # Assign result to variable first, then return
+        result =
+          try do
+            # Use injected module
+            content = fs_module.read!(absolute_path)
+            ["--- File: #{relative_file} ---", "```", content, "```"]
+          rescue
+            e in File.Error ->
+              # IO.inspect(e, label: "File read error for #{absolute_path}")
+              ["--- File: #{relative_file} (Error reading file: #{inspect(e)}) ---"]
+          end
+
+        # End of try/rescue
+
+        # Return the result variable
+        result
+      end
+    end)
+  end
+
+  # --- resolve_file_path remains unchanged, uses Path ---
+  @doc false
+  defp resolve_file_path(relative_file, cwd, _repo_root) do
+    # If relative_file starts with ../, Path.expand/Path.join handles it correctly relative to cwd
+    Path.expand(Path.join(cwd, relative_file))
+  end
+
+  # --- binary_file? needs fs_module ---
+  defp binary_file?(fs_module, file_path) do
+    # First check if it's a regular file, directories/symlinks aren't binary content files
+    # Use injected module
+    if fs_module.regular?(file_path) do
+      # It's a regular file, try reading it
+      try do
+        # Read up to 1024 bytes
+        # Use injected module
+        chunk = fs_module.read!(file_path)
+        # Check for null byte
+        String.contains?(chunk, "\0")
+      rescue
+        # If we can't even read the file, treat it as binary/unreadable
+        File.Error -> true
+      end
+
+      # End of try/rescue
+    else
+      # Not a regular file (dir, symlink etc.) -> treat as binary/ignorable
+      # Treat non-regular files (like dirs, symlinks that might be broken) as ignorable/binary
+      true
+    end
+
+    # End of if/else
+  end
+
+  # End of defp
+end
+
+```
+--- File: mix.exs ---
+```
+defmodule Prepx.MixProject do
+  use Mix.Project
+
+  def project do
+    [
+      app: :prepx,
+      version: "0.1.0",
+      elixir: "~> 1.18",
+      start_permanent: Mix.env() == :prod,
+      deps: deps(),
+      escript: escript()
+    ]
+  end
+
+  # Run "mix help compile.app" to learn about applications.
+  def application do
+    [
+      extra_applications: [:logger]
+    ]
+  end
+
+  # Run "mix help deps" to learn about dependencies.
+  defp deps do
+    [
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
+      # {:dep_from_hexpm, "~> 0.3.0"},
+      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
+    ]
+  end
+
+  defp escript do
+    [main_module: Prepx.CLI]
+  end
+end
+
+```
+--- File: mix.lock ---
+```
+%{
+  "bunt": {:hex, :bunt, "1.0.0", "081c2c665f086849e6d57900292b3a161727ab40431219529f13c4ddcf3e7a44", [:mix], [], "hexpm", "dc5f86aa08a5f6fa6b8096f0735c4e76d54ae5c9fa2c143e5a1fc7c1cd9bb6b5"},
+  "credo": {:hex, :credo, "1.7.11", "d3e805f7ddf6c9c854fd36f089649d7cf6ba74c42bc3795d587814e3c9847102", [:mix], [{:bunt, "~> 0.2.1 or ~> 1.0", [hex: :bunt, repo: "hexpm", optional: false]}, {:file_system, "~> 0.2 or ~> 1.0", [hex: :file_system, repo: "hexpm", optional: false]}, {:jason, "~> 1.0", [hex: :jason, repo: "hexpm", optional: false]}], "hexpm", "56826b4306843253a66e47ae45e98e7d284ee1f95d53d1612bb483f88a8cf219"},
+  "file_system": {:hex, :file_system, "1.1.0", "08d232062284546c6c34426997dd7ef6ec9f8bbd090eb91780283c9016840e8f", [:mix], [], "hexpm", "bfcf81244f416871f2a2e15c1b515287faa5db9c6bcf290222206d120b3d43f6"},
+  "jason": {:hex, :jason, "1.4.4", "b9226785a9aa77b6857ca22832cffa5d5011a667207eb2a0ad56adb5db443b8a", [:mix], [{:decimal, "~> 1.0 or ~> 2.0", [hex: :decimal, repo: "hexpm", optional: true]}], "hexpm", "c5eb0cab91f094599f94d55bc63409236a8ec69a21a67814529e8d5f6cc90b3b"},
+}
+
+```
+--- File: prepx (Binary file ignored) ---
+--- File: test/prepx_test.exs ---
+```
+defmodule PrepxTest do
+  use ExUnit.Case
+  doctest Prepx
+
+  alias Prepx.Core
+
+  @output_filename "llm_context.txt"
+
+  setup do
+    # Create a temporary directory for our test repo
+    tmp_dir = Path.join(System.tmp_dir!(), "prepx_test_#{:rand.uniform(1_000_000)}")
+    File.mkdir_p!(tmp_dir)
+
+    # Set up test fixture structure
+    setup_test_fixture(tmp_dir)
+
+    on_exit(fn ->
+      # Clean up temporary directory after test
+      File.rm_rf!(tmp_dir)
+
+      # Also clean up any output files in CWD if they exist
+      output_file = Path.join(File.cwd!(), @output_filename)
+      if File.exists?(output_file), do: File.rm!(output_file)
+    end)
+
+    %{tmp_dir: tmp_dir}
+  end
+
+  @tag :tmp_dir
+  test "process from repo root", %{tmp_dir: tmp_dir} do
+    # Run from repo root
+    {:ok, _} = Prepx.CLI.main([tmp_dir])
+
+    output_path = Path.join(tmp_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Verify directory summary
+    assert String.contains?(content, "Directory Tree:")
+    assert String.contains?(content, "├── .gitignore")
+    assert String.contains?(content, "├── binary.bin")
+    assert String.contains?(content, "├── dir1")
+    assert String.contains?(content, "│   ├── dir1file.txt")
+    assert String.contains?(content, "└── file1.txt")
+
+    # Verify file markers and content
+    assert String.contains?(content, "--- File: .gitignore ---")
+    assert String.contains?(content, "--- File: binary.bin (Binary file ignored) ---")
+    assert String.contains?(content, "--- File: dir1/dir1file.txt ---")
+    assert String.contains?(content, "--- File: file1.txt ---")
+
+    # Verify actual content (example)
+    assert String.contains?(content, "This is file1 content")
+    assert String.contains?(content, "This is dir1file content")
+  end
+
+  @tag :tmp_dir
+  test "process from subdirectory", %{tmp_dir: tmp_dir} do
+    # Run from subdirectory
+    subdir_path = Path.join(tmp_dir, "dir1")
+    {:ok, _} = Prepx.CLI.main([subdir_path])
+
+    output_path = Path.join(subdir_path, @output_filename)
+    content = File.read!(output_path)
+
+    # Split content into tree and file contents sections
+    [tree_section, file_contents_section] = String.split(content, "File Contents:\n", parts: 2)
+
+    # Verify content includes all files, not just those in the current directory
+    assert String.contains?(tree_section, "Directory Tree:")
+    assert String.contains?(tree_section, "└── dir1file.txt")
+    # Should not show parent items in tree
+    refute String.contains?(tree_section, "../file1.txt")
+    refute String.contains?(tree_section, "../.gitignore")
+
+    assert String.contains?(file_contents_section, "File Contents:")
+    # Should still contain content from parent dirs, marked relative
+    assert String.contains?(file_contents_section, "--- File: ../.gitignore ---")
+
+    assert String.contains?(
+             file_contents_section,
+             "--- File: ../binary.bin (Binary file ignored) ---"
+           )
+
+    assert String.contains?(file_contents_section, "--- File: dir1file.txt ---")
+    assert String.contains?(file_contents_section, "--- File: ../file1.txt ---")
+
+    # Verify actual content (example)
+    assert String.contains?(file_contents_section, "This is file1 content")
+    assert String.contains?(file_contents_section, "This is dir1file content")
+  end
+
+  @tag :tmp_dir
+  test "file path resolution in subdirectories", %{tmp_dir: tmp_dir} do
+    # Setup complex structure
+    setup_repo(tmp_dir)
+    components_dir = Path.join(tmp_dir, "components")
+
+    # Run from components subdirectory
+    {:ok, _} = Prepx.CLI.main([components_dir])
+
+    output_path = Path.join(components_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Split content into tree and file contents sections
+    [tree_section, file_contents_section] = String.split(content, "File Contents:\n", parts: 2)
+
+    # Check Tree (should only contain button.ex relative to components_dir)
+    assert String.contains?(tree_section, "Directory Tree:")
+    assert String.contains?(tree_section, "└── button.ex")
+    refute String.contains?(tree_section, "../file1.txt")
+
+    # Check Contents (should include files from parent, marked relative)
+    assert String.contains?(file_contents_section, "File Contents:")
+    assert String.contains?(file_contents_section, "--- File: ../.gitignore ---")
+
+    assert String.contains?(
+             file_contents_section,
+             "--- File: ../binary.bin (Binary file ignored) ---"
+           )
+
+    # Test deeper nesting
+    assert String.contains?(file_contents_section, "--- File: ../dir1/dir1file.txt ---")
+    assert String.contains?(file_contents_section, "--- File: ../file1.txt ----")
+    assert String.contains?(file_contents_section, "--- File: button.ex ---")
+
+    # Check actual content
+    assert String.contains?(file_contents_section, "defmodule Button do")
+    assert String.contains?(file_contents_section, "This is file1 content")
+    assert String.contains?(file_contents_section, "ignored.txt")
+  end
+
+  test "gitignore exclusion", %{tmp_dir: tmp_dir} do
+    # Run from repo root
+    {:ok, _} = Prepx.CLI.main([tmp_dir])
+
+    output_path = Path.join(tmp_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Verify ignored file is not included as a file content
+    refute String.contains?(content, "--- File: ignored.txt ---")
+    refute String.contains?(content, "This file should be ignored")
+  end
+
+  test "binary file detection", %{tmp_dir: tmp_dir} do
+    # Run from repo root
+    {:ok, _} = Prepx.CLI.main([tmp_dir])
+
+    output_path = Path.join(tmp_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Check tree includes binary file
+    assert String.contains?(content, "├── binary.bin")
+    # Check contents section marks binary file correctly
+    assert String.contains?(content, "--- File: binary.bin (Binary file ignored) ---")
+    # Ensure content of binary file is not included
+    refute String.contains?(content, "<<0, 1, 2>>")
+  end
+
+  @tag :tmp_dir
+  test "empty directory handling", %{tmp_dir: tmp_dir} do
+    # Create an empty directory
+    empty_dir = Path.join(tmp_dir, "empty_dir")
+    File.mkdir!(empty_dir)
+
+    # Run prepx from the parent directory
+    {:ok, _} = Prepx.CLI.main([tmp_dir])
+
+    output_path = Path.join(tmp_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Verify that the empty directory is included in the directory tree
+    assert String.contains?(content, "├── empty_dir")
+    # Verify that there is no file content for the empty directory
+    refute String.contains?(content, "--- File: empty_dir ---")
+  end
+
+  @tag :tmp_dir
+  test "deeply nested directories", %{tmp_dir: tmp_dir} do
+    # Create a deeply nested directory structure
+    nested_dir = Path.join(tmp_dir, "dir1")
+    nested_dir = Path.join(nested_dir, "dir2")
+    nested_dir = Path.join(nested_dir, "dir3")
+    File.mkdir_p!(nested_dir)
+    File.write!(Path.join(nested_dir, "nested_file.txt"), "This is a nested file.")
+
+    # Run prepx from the parent directory
+    {:ok, _} = Prepx.CLI.main([tmp_dir])
+
+    output_path = Path.join(tmp_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Verify that the nested directory structure is correctly displayed in the tree
+    assert String.contains?(content, "│   └── dir1")
+    assert String.contains?(content, "│       └── dir2")
+    assert String.contains?(content, "│           └── dir3")
+    assert String.contains?(content, "│               └── nested_file.txt")
+    # Verify that the content of the nested file is included
+    assert String.contains?(content, "--- File: dir1/dir2/dir3/nested_file.txt ---")
+    assert String.contains?(content, "This is a nested file.")
+  end
+
+  @tag :tmp_dir
+  test "file content encoding", %{tmp_dir: tmp_dir} do
+    # Create a UTF-8 encoded file
+    utf8_file = Path.join(tmp_dir, "utf8_file.txt")
+    File.write!(utf8_file, "This is a UTF-8 file with some special characters: éàçüö.")
+
+    # Run prepx from the parent directory
+    {:ok, _} = Prepx.CLI.main([tmp_dir])
+
+    output_path = Path.join(tmp_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Verify that the UTF-8 content is correctly displayed
+    assert String.contains?(content, "--- File: utf8_file.txt ---")
+    assert String.contains?(content, "This is a UTF-8 file with some special characters: éàçüö.")
+  end
+
+  @tag :tmp_dir
+  test "git repository boundary detection", %{tmp_dir: tmp_dir} do
+    # Create a directory *outside* the git repository
+    external_dir = Path.join(Path.dirname(tmp_dir), "external_dir")
+    File.mkdir_p!(external_dir)
+    File.write!(Path.join(external_dir, "external_file.txt"), "This is an external file.")
+
+    # Run prepx from the external directory
+    {:ok, _} = Prepx.CLI.main([external_dir])
+
+    output_path = Path.join(external_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Verify that prepx still functions correctly and displays the external file
+    assert String.contains?(content, "Directory Tree:")
+    assert String.contains?(content, "└── external_file.txt")
+    assert String.contains?(content, "--- File: external_file.txt ---")
+    assert String.contains?(content, "This is an external file.")
+  end
+
+  @tag :tmp_dir
+  test "file name edge cases", %{tmp_dir: tmp_dir} do
+    # Create files with spaces and special characters in their names
+    space_file = Path.join(tmp_dir, "file with spaces.txt")
+    special_file = Path.join(tmp_dir, "file!@#$%^&*.txt")
+    File.write!(space_file, "This file has spaces in its name.")
+    File.write!(special_file, "This file has special characters in its name.")
+
+    # Run prepx from the parent directory
+    {:ok, _} = Prepx.CLI.main([tmp_dir])
+
+    output_path = Path.join(tmp_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Verify that the files with spaces and special characters are correctly displayed
+    assert String.contains?(content, "├── file with spaces.txt")
+    assert String.contains?(content, "├── file!@#$%^&*.txt")
+    assert String.contains?(content, "--- File: file with spaces.txt ---")
+    assert String.contains?(content, "--- File: file!@#$%^&*.txt ---")
+    assert String.contains?(content, "This file has spaces in its name.")
+    assert String.contains?(content, "This file has special characters in its name.")
+  end
+
+  # Helper function to set up our test fixture
+  defp setup_test_fixture(dir) do
+    # Create files in root
+    File.write!(Path.join(dir, "file1.txt"), "This is file1 content")
+    File.write!(Path.join(dir, "binary.bin"), <<0, 1, 2, 3>>)
+    File.write!(Path.join(dir, "ignored.txt"), "This should be ignored")
+
+    # Create directory structure
+    dir1 = Path.join(dir, "dir1")
+    File.mkdir_p!(dir1)
+    File.write!(Path.join(dir1, "dir1file.txt"), "This is dir1file content")
+
+    # Initialize git repository
+    System.cmd("git", ["init"], cd: dir)
+    System.cmd("git", ["add", "file1.txt", "binary.bin", "dir1"], cd: dir)
+
+    # Create .gitignore to exclude ignored.txt
+    File.write!(Path.join(dir, ".gitignore"), "ignored.txt")
+    System.cmd("git", ["add", ".gitignore"], cd: dir)
+
+    # Set git config for the test
+    System.cmd("git", ["config", "user.name", "Test User"], cd: dir)
+    System.cmd("git", ["config", "user.email", "test@example.com"], cd: dir)
+    System.cmd("git", ["commit", "-m", "Initial commit"], cd: dir)
+  end
+
+  defp setup_repo(tmp_dir) do
+    # Create files in root
+    File.write!(Path.join(tmp_dir, "file1.txt"), "This is file1 content")
+    File.write!(Path.join(tmp_dir, "binary.bin"), <<0, 1, 2, 3>>)
+    File.write!(Path.join(tmp_dir, "ignored.txt"), "This should be ignored")
+
+    # Create directory structure
+    dir1 = Path.join(tmp_dir, "dir1")
+    File.mkdir_p!(dir1)
+    File.write!(Path.join(dir1, "dir1file.txt"), "This is dir1file content")
+
+    # Initialize git repository
+    System.cmd("git", ["init"], cd: tmp_dir)
+    System.cmd("git", ["add", "file1.txt", "binary.bin", "dir1"], cd: tmp_dir)
+
+    # Create .gitignore to exclude ignored.txt
+    File.write!(Path.join(tmp_dir, ".gitignore"), "ignored.txt")
+    System.cmd("git", ["add", ".gitignore"], cd: tmp_dir)
+
+    # Set git config for the test
+    System.cmd("git", ["config", "user.name", "Test User"], cd: tmp_dir)
+    System.cmd("git", ["config", "user.email", "test@example.com"], cd: tmp_dir)
+    System.cmd("git", ["commit", "-m", "Initial commit"], cd: tmp_dir)
+  end
+end
+
+```
+--- File: test/test_helper.exs ---
+```
+ExUnit.start()
+
+```
+```
+--- File: .formatter.exs ---
+```
+# Used by "mix format"
+[
+  inputs: ["{mix,.formatter}.exs", "{config,lib,test}/**/*.{ex,exs}"]
+]
+
+```
+--- File: .gitignore ---
+```
+# The directory Mix will write compiled artifacts to.
+/_build/
+
+# If you run "mix test --cover", coverage assets end up here.
+/cover/
+
+# The directory Mix downloads your dependencies sources to.
+/deps/
+
+# Where third-party dependencies like ExDoc output generated docs.
+/doc/
+
+# If the VM crashes, it generates a dump, let's ignore it too.
+erl_crash.dump
+
+# Also ignore archive artifacts (built via "mix archive.build").
+*.ez
+
+# Ignore package tarball (built via "mix hex.build").
+prepx-*.tar
+
+# Temporary files, for example, from tests.
+/tmp/
+
+```
+--- File: .mise.toml ---
+```
+[tools]
+elixir = "1.18.3-otp-27"
+erlang = "27.3"
+nodejs = '20.19.0'
+
+```
+--- File: README.md ---
+```
+# Prepx
+
+Prepx is a command-line interface (CLI) tool that helps developers consolidate the codebase of a project (or a specific subdirectory within it) into a single text file. The primary use case for this consolidated file is to provide context to Large Language Models (LLMs).
+
+## Features
+
+- **Git Aware**: Only includes files that are tracked or untracked by Git, respecting `.gitignore` rules
+- **Flexible Scope**: Can be run from any directory within a Git repository
+- **Directory Summary**: Provides a tree-like summary of the directory structure
+- **Binary File Handling**: Detects and skips binary files
+- **Clear Formatting**: Clearly marks file content with start and end markers
+
+## Installation
+
+### Prerequisites
+
+- Erlang/OTP (to run the escript)
+- Git (must be available in your PATH)
+- Elixir ~> 1.18 (for development only)
+
+### Building from Source
+
+1. Clone this repository
+2. Build the escript:
+
+```bash
+cd prepx
+mix deps.get
+mix escript.build
+```
+
+3. The executable `prepx` will be generated in the project directory
+
+### Adding to PATH
+
+To use `prepx` from anywhere on your system, you need to add it to your PATH. Here are instructions for different operating systems:
+
+#### macOS and Linux
+
+Method 1: Copy to a directory already in your PATH:
+
+```bash
+# Copy to /usr/local/bin (might require sudo)
+sudo cp prepx /usr/local/bin/
+
+# Or to your user's bin directory if it exists and is in your PATH
+cp prepx ~/bin/
+```
+
+Method 2: Create a symbolic link:
+
+```bash
+# Create a symbolic link in /usr/local/bin
+sudo ln -s /full/path/to/your/prepx /usr/local/bin/prepx
+```
+
+Method 3: Add the directory containing prepx to your PATH (in your shell profile):
+
+```bash
+# For bash (add to ~/.bash_profile or ~/.bashrc)
+echo 'export PATH="/path/to/directory/containing/prepx:$PATH"' >> ~/.bash_profile
+source ~/.bash_profile
+
+# For zsh (add to ~/.zshrc)
+echo 'export PATH="~/code/zimakki/prepx/:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+#### Windows
+
+Method 1: Copy to a directory in your PATH:
+
+```powershell
+# Copy to a directory that's already in your PATH, for example:
+copy prepx.bat C:\Windows\System32\
+```
+
+Method 2: Add the directory to your PATH environment variable:
+
+1. Right-click on 'This PC' or 'My Computer' and select 'Properties'
+2. Click on 'Advanced system settings'
+3. Click on 'Environment Variables'
+4. Under 'System variables' or 'User variables', find the 'Path' variable, select it and click 'Edit'
+5. Click 'New' and add the full path to the directory containing your prepx executable
+6. Click 'OK' to close all dialogs
+
+Method 3: Create a batch file wrapper and place it in a directory in your PATH:
+
+```batch
+@echo off
+rem Save this as prepx.bat in a directory that's in your PATH
+"C:\path\to\your\prepx" %*
+```
+
+To verify that `prepx` is correctly added to your PATH, open a new terminal or command prompt window and run:
+
+```bash
+prepx --version
+```
+
+## Usage
+
+Simply navigate to any directory within a Git repository and run:
+
+```bash
+prepx
+```
+
+This will create a file named `llm_context.txt` in your current working directory containing:
+
+1. A tree-like summary of the directory structure
+2. The full content of all text files within the current directory (and subdirectories)
+3. Markers for binary files (which are skipped)
+
+### Example Output
+
+```
+# Directory Structure
+
+└── lib
+    ├── prepx
+    │   ├── cli.ex
+    │   └── core.ex
+    └── prepx.ex
+
+--- START FILE: lib/prepx.ex ---
+defmodule Prepx do
+  @moduledoc """
+  Prepx is a CLI tool that consolidates a Git repository's codebase...
+  """
+end
+--- END FILE: lib/prepx.ex ---
+
+--- START FILE: lib/prepx/cli.ex ---
+defmodule Prepx.CLI do
+  ...
+end
+--- END FILE: lib/prepx/cli.ex ---
+
+--- BINARY FILE (SKIPPED): assets/image.png ---
+```
+
+## Development
+
+### Running Tests
+
+```bash
+mix test
+```
+
+### Project Structure
+
+- `lib/prepx.ex` - Main module documentation
+- `lib/prepx/cli.ex` - Command-line interface implementation
+- `lib/prepx/core.ex` - Core functionality for file processing and output generation
+- `test/` - Test suite and fixtures
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+```
+--- File: lib/prepx.ex ---
+```
+defmodule Prepx do
+  @moduledoc """
+  Prepx is a CLI tool that consolidates a Git repository's codebase into a single text file,
+  primarily for providing context to Large Language Models (LLMs).
+
+  The tool respects .gitignore rules and works from any directory within a Git repository.
+
+  ## Features
+
+  * Generates a directory structure summary
+  * Includes file contents with clear markers
+  * Skips binary files
+  * Respects .gitignore exclusions
+  * Works from any subdirectory in a Git repository
+  """
+
+  @doc """
+  Returns the current version of the application.
+  """
+  def version do
+    Application.spec(:prepx, :vsn)
+  end
+end
+
+```
+--- File: lib/prepx/cli.ex ---
+```
+defmodule Prepx.CLI do
+  @moduledoc """
+  Command-line interface for Prepx.
+
+  This module provides the entry point for the escript binary,
+  processing command-line arguments and delegating to the Core module.
+  """
+
+  @doc """
+  The main entry point for the escript.
+
+  Processes command-line arguments and executes the core functionality.
+
+  ## Parameters
+
+  * `_args` - List of command-line arguments (currently not used)
+  """
+  def main(_args) do
+    IO.puts("Processing repository...")
+
+    case Prepx.Core.process(Prepx.FileSystemReal) do
+      {:ok, output_path} ->
+        IO.puts("Successfully created LLM context file: #{output_path}")
+        System.halt(0)
+
+      {:error, reason} ->
+        IO.puts(:stderr, "Error: #{reason}")
+        System.halt(1)
+    end
+  end
+end
+
+```
+--- File: lib/prepx/core.ex ---
+```
+defmodule Prepx.Core do
+  @moduledoc """
+  Core functionality for the Prepx tool.
+
+  This module handles the processing of Git repositories to generate
+  a consolidated text file for LLM context.
+  """
+
+  @output_filename "llm_context.txt"
+
+  @doc """
+  Process the current working directory and create the LLM context file.
+
+  Requires a module implementing FileSystemBehaviour.
+
+  ## Returns
+
+  * `{:ok, output_path}` - The path to the created context file
+  * `{:error, reason}` - An error message if processing failed
+  """
+  def process(fs_module \\ Prepx.FileSystemReal) when is_atom(fs_module) do
+    with {:ok, repo_root} <- Prepx.Git.get_git_repo_root(),
+         # Use injected module
+         {:ok, cwd} <- fs_module.cwd(),
+         {:ok, tracked_files} <- Prepx.Git.get_git_tracked_files(repo_root),
+         # Get all files relative to cwd for content generation
+         relative_files_for_content = filter_files_by_cwd(tracked_files, repo_root, cwd),
+         # Filter files for directory tree (only current dir and subdirs)
+         relative_files_for_tree =
+           Enum.reject(relative_files_for_content, &String.starts_with?(&1, "../")),
+         # Build tree using only files at/below cwd
+         {:ok, file_tree} <- build_file_tree(relative_files_for_tree),
+         # Generate output using the full list (including ../) for file content
+         # Pass fs_module
+         {:ok, output_path} <-
+           generate_output_file(fs_module, file_tree, relative_files_for_content, cwd, repo_root) do
+      {:ok, output_path}
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # --- filter_files_by_cwd remains unchanged for now, it only uses Path ---
+  @doc """
+  Convert all tracked file paths (relative to repo root) to paths relative to the current working directory.
+  """
+  def filter_files_by_cwd(files, repo_root, cwd) do
+    expanded_cwd = Path.expand(cwd)
+
+    Enum.map(files, fn file_relative_to_repo ->
+      calculate_relative_path(file_relative_to_repo, repo_root, expanded_cwd, cwd)
+    end)
+  end
+
+  # --- Helper function to calculate relative path --- 
+  defp calculate_relative_path(file_relative_to_repo, repo_root, expanded_cwd, cwd) do
+    abs_path = Path.join(repo_root, file_relative_to_repo)
+    expanded_abs_path = Path.expand(abs_path)
+
+    relative_path = Path.relative_to(expanded_abs_path, expanded_cwd)
+
+    # Fix for Path.relative_to returning absolute paths in some cases (e.g., macOS tmp dirs)
+    if String.starts_with?(relative_path, "/") do
+      # If result is absolute, check if original repo path contains the cwd's dir name
+      if String.contains?(file_relative_to_repo, Path.basename(cwd)) do
+        # Heuristic failed (e.g., file in subdir with same name as parent dir part)
+        # Fallback to the absolute path from Path.relative_to
+        relative_path
+      else
+        # Heuristic: Assume it's one level up if original path doesn't contain cwd base name
+        "../" <> Path.basename(file_relative_to_repo)
+      end
+    else
+      # Path.relative_to returned a relative path, use it
+      relative_path
+    end
+  end
+
+  # --- build_file_tree remains unchanged, it only uses Path/String/Map ---
+  @doc """
+  Builds a nested map representing the file tree structure.
+  Input paths must be relative to the CWD and not contain '../'.
+  """
+  def build_file_tree(relative_files) do
+    tree =
+      Enum.reduce(relative_files, %{}, fn file_path, acc ->
+        parts = Path.split(file_path)
+        build_nested_map(acc, parts)
+      end)
+
+    {:ok, tree}
+  rescue
+    e -> {:error, "Failed to build file tree: #{inspect(e)}"}
+  end
+
+  defp build_nested_map(current_map, []) do
+    # Should not happen with valid file paths
+    current_map
+  end
+
+  defp build_nested_map(current_map, [file]) do
+    Map.put(current_map, file, :file)
+  end
+
+  defp build_nested_map(current_map, [dir | rest]) do
+    sub_tree = Map.get(current_map, dir, %{})
+    updated_sub_tree = build_nested_map(sub_tree, rest)
+    Map.put(current_map, dir, updated_sub_tree)
+  end
+
+  # --- format_tree remains unchanged, it only formats the map ---
+  @doc """
+  Formats the file tree map into a string list for display.
+  """
+  def format_tree(tree) do
+    tree |> Map.to_list() |> Enum.sort() |> do_format_tree("", true)
+  end
+
+  defp do_format_tree([], _prefix, _is_last) do
+    []
+  end
+
+  defp do_format_tree([{name, :file} | rest], prefix, is_last_parent) do
+    connector = if is_last_parent && Enum.empty?(rest), do: "└── ", else: "├── "
+    line = prefix <> connector <> name
+    children_prefix = prefix <> if is_last_parent && Enum.empty?(rest), do: "    ", else: "│   "
+    [line | do_format_tree(rest, prefix, is_last_parent)]
+  end
+
+  defp do_format_tree([{name, subtree} | rest], prefix, is_last_parent) when is_map(subtree) do
+    is_last_child = Enum.empty?(rest)
+    connector = if is_last_child, do: "└── ", else: "├── "
+    line = prefix <> connector <> name
+    children_prefix = prefix <> if is_last_child, do: "    ", else: "│   "
+
+    children_lines =
+      subtree |> Map.to_list() |> Enum.sort() |> do_format_tree(children_prefix, is_last_child)
+
+    [line | children_lines] ++ do_format_tree(rest, prefix, is_last_parent)
+  end
+
+  # --- generate_output_file needs fs_module ---
+  defp generate_output_file(fs_module, file_tree, relative_files_for_content, cwd, repo_root) do
+    output_path = Path.join(cwd, @output_filename)
+    formatted_tree = format_tree(file_tree)
+    # Generate content for all files, including those potentially outside cwd (using ../)
+    file_contents =
+      generate_file_contents(fs_module, relative_files_for_content, cwd, repo_root)
+
+    output_content =
+      ["Directory Tree:", "```", formatted_tree, "```", "\nFile Contents:", file_contents]
+      |> List.flatten()
+      |> Enum.join("\n")
+
+    try do
+      _ = fs_module.write!(output_path, output_content)
+      {:ok, output_path}
+    rescue
+      e in File.Error ->
+        {:error, "Failed to write output file #{output_path}: #{inspect(e)}"}
+    end
+  end
+
+  # --- generate_file_contents needs fs_module ---
+  defp generate_file_contents(fs_module, relative_files, cwd, repo_root) do
+    Enum.map(relative_files, fn relative_file ->
+      # Resolve the absolute path correctly for reading
+      absolute_path = resolve_file_path(relative_file, cwd, repo_root)
+
+      if binary_file?(fs_module, absolute_path) do
+        ["--- File: #{relative_file} (Binary file ignored) ---"]
+      else
+        # Assign result to variable first, then return
+        result =
+          try do
+            # Use injected module
+            content = fs_module.read!(absolute_path)
+            ["--- File: #{relative_file} ---", "```", content, "```"]
+          rescue
+            e in File.Error ->
+              # IO.inspect(e, label: "File read error for #{absolute_path}")
+              ["--- File: #{relative_file} (Error reading file: #{inspect(e)}) ---"]
+          end
+
+        # End of try/rescue
+
+        # Return the result variable
+        result
+      end
+    end)
+  end
+
+  # --- resolve_file_path remains unchanged, uses Path ---
+  @doc false
+  defp resolve_file_path(relative_file, cwd, _repo_root) do
+    # If relative_file starts with ../, Path.expand/Path.join handles it correctly relative to cwd
+    Path.expand(Path.join(cwd, relative_file))
+  end
+
+  # --- binary_file? needs fs_module ---
+  defp binary_file?(fs_module, file_path) do
+    # First check if it's a regular file, directories/symlinks aren't binary content files
+    # Use injected module
+    if fs_module.regular?(file_path) do
+      # It's a regular file, try reading it
+      try do
+        # Read up to 1024 bytes
+        # Use injected module
+        chunk = fs_module.read!(file_path)
+        # Check for null byte
+        String.contains?(chunk, "\0")
+      rescue
+        # If we can't even read the file, treat it as binary/unreadable
+        File.Error -> true
+      end
+
+      # End of try/rescue
+    else
+      # Not a regular file (dir, symlink etc.) -> treat as binary/ignorable
+      # Treat non-regular files (like dirs, symlinks that might be broken) as ignorable/binary
+      true
+    end
+
+    # End of if/else
+  end
+
+  # End of defp
+end
+
+```
+--- File: mix.exs ---
+```
+defmodule Prepx.MixProject do
+  use Mix.Project
+
+  def project do
+    [
+      app: :prepx,
+      version: "0.1.0",
+      elixir: "~> 1.18",
+      start_permanent: Mix.env() == :prod,
+      deps: deps(),
+      escript: escript()
+    ]
+  end
+
+  # Run "mix help compile.app" to learn about applications.
+  def application do
+    [
+      extra_applications: [:logger]
+    ]
+  end
+
+  # Run "mix help deps" to learn about dependencies.
+  defp deps do
+    [
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
+      # {:dep_from_hexpm, "~> 0.3.0"},
+      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
+    ]
+  end
+
+  defp escript do
+    [main_module: Prepx.CLI]
+  end
+end
+
+```
+--- File: mix.lock ---
+```
+%{
+  "bunt": {:hex, :bunt, "1.0.0", "081c2c665f086849e6d57900292b3a161727ab40431219529f13c4ddcf3e7a44", [:mix], [], "hexpm", "dc5f86aa08a5f6fa6b8096f0735c4e76d54ae5c9fa2c143e5a1fc7c1cd9bb6b5"},
+  "credo": {:hex, :credo, "1.7.11", "d3e805f7ddf6c9c854fd36f089649d7cf6ba74c42bc3795d587814e3c9847102", [:mix], [{:bunt, "~> 0.2.1 or ~> 1.0", [hex: :bunt, repo: "hexpm", optional: false]}, {:file_system, "~> 0.2 or ~> 1.0", [hex: :file_system, repo: "hexpm", optional: false]}, {:jason, "~> 1.0", [hex: :jason, repo: "hexpm", optional: false]}], "hexpm", "56826b4306843253a66e47ae45e98e7d284ee1f95d53d1612bb483f88a8cf219"},
+  "file_system": {:hex, :file_system, "1.1.0", "08d232062284546c6c34426997dd7ef6ec9f8bbd090eb91780283c9016840e8f", [:mix], [], "hexpm", "bfcf81244f416871f2a2e15c1b515287faa5db9c6bcf290222206d120b3d43f6"},
+  "jason": {:hex, :jason, "1.4.4", "b9226785a9aa77b6857ca22832cffa5d5011a667207eb2a0ad56adb5db443b8a", [:mix], [{:decimal, "~> 1.0 or ~> 2.0", [hex: :decimal, repo: "hexpm", optional: true]}], "hexpm", "c5eb0cab91f094599f94d55bc63409236a8ec69a21a67814529e8d5f6cc90b3b"},
+}
+
+```
+--- File: prepx (Binary file ignored) ---
+--- File: test/prepx_test.exs ---
+```
+defmodule PrepxTest do
+  use ExUnit.Case
+  doctest Prepx
+
+  alias Prepx.Core
+
+  @output_filename "llm_context.txt"
+
+  setup do
+    # Create a temporary directory for our test repo
+    tmp_dir = Path.join(System.tmp_dir!(), "prepx_test_#{:rand.uniform(1_000_000)}")
+    File.mkdir_p!(tmp_dir)
+
+    # Set up test fixture structure
+    setup_test_fixture(tmp_dir)
+
+    on_exit(fn ->
+      # Clean up temporary directory after test
+      File.rm_rf!(tmp_dir)
+
+      # Also clean up any output files in CWD if they exist
+      output_file = Path.join(File.cwd!(), @output_filename)
+      if File.exists?(output_file), do: File.rm!(output_file)
+    end)
+
+    %{tmp_dir: tmp_dir}
+  end
+
+  @tag :basic
+  test "process from repo root", %{tmp_dir: tmp_dir} do
+    # Run from repo root
+    {:ok, _} = Prepx.CLI.main([tmp_dir])
+
+    output_path = Path.join(tmp_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Verify directory summary
+    assert String.contains?(content, "Directory Tree:")
+    assert String.contains?(content, "├── .gitignore")
+    assert String.contains?(content, "├── binary.bin")
+    assert String.contains?(content, "├── dir1")
+    assert String.contains?(content, "│   ├── dir1file.txt")
+    assert String.contains?(content, "└── file1.txt")
+
+    # Verify file markers and content
+    assert String.contains?(content, "--- File: .gitignore ---")
+    assert String.contains?(content, "--- File: binary.bin (Binary file ignored) ---")
+    assert String.contains?(content, "--- File: dir1/dir1file.txt ---")
+    assert String.contains?(content, "--- File: file1.txt ---")
+
+    # Verify actual content (example)
+    assert String.contains?(content, "This is file1 content")
+    assert String.contains?(content, "This is dir1file content")
+  end
+
+  @tag :basic
+  test "process from subdirectory", %{tmp_dir: tmp_dir} do
+    # Run from subdirectory
+    subdir_path = Path.join(tmp_dir, "dir1")
+    {:ok, _} = Prepx.CLI.main([subdir_path])
+
+    output_path = Path.join(subdir_path, @output_filename)
+    content = File.read!(output_path)
+
+    # Split content into tree and file contents sections
+    [tree_section, file_contents_section] = String.split(content, "File Contents:\n", parts: 2)
+
+    # Verify content includes all files, not just those in the current directory
+    assert String.contains?(tree_section, "Directory Tree:")
+    assert String.contains?(tree_section, "└── dir1file.txt")
+    # Should not show parent items in tree
+    refute String.contains?(tree_section, "../file1.txt")
+    refute String.contains?(tree_section, "../.gitignore")
+
+    assert String.contains?(file_contents_section, "File Contents:")
+    # Should still contain content from parent dirs, marked relative
+    assert String.contains?(file_contents_section, "--- File: ../.gitignore ---")
+
+    assert String.contains?(
+             file_contents_section,
+             "--- File: ../binary.bin (Binary file ignored) ---"
+           )
+
+    assert String.contains?(file_contents_section, "--- File: dir1file.txt ---")
+    assert String.contains?(file_contents_section, "--- File: ../file1.txt ---")
+
+    # Verify actual content (example)
+    assert String.contains?(file_contents_section, "This is file1 content")
+    assert String.contains?(file_contents_section, "This is dir1file content")
+  end
+
+  @tag :file_system
+  test "gitignore exclusion", %{tmp_dir: tmp_dir} do
+    # Run from repo root
+    {:ok, _} = Prepx.CLI.main([tmp_dir])
+
+    output_path = Path.join(tmp_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Verify ignored file is not included as a file content
+    refute String.contains?(content, "--- File: ignored.txt ---")
+    refute String.contains?(content, "This file should be ignored")
+  end
+
+  @tag :file_system
+  test "binary file detection", %{tmp_dir: tmp_dir} do
+    # Run from repo root
+    {:ok, _} = Prepx.CLI.main([tmp_dir])
+
+    output_path = Path.join(tmp_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Check tree includes binary file
+    assert String.contains?(content, "├── binary.bin")
+    # Check contents section marks binary file correctly
+    assert String.contains?(content, "--- File: binary.bin (Binary file ignored) ---")
+    # Ensure content of binary file is not included
+    refute String.contains?(content, "<<0, 1, 2>>")
+  end
+
+  @tag :file_system
+  test "empty directory handling", %{tmp_dir: tmp_dir} do
+    # Create an empty directory
+    empty_dir = Path.join(tmp_dir, "empty_dir")
+    File.mkdir!(empty_dir)
+
+    # Run prepx from the parent directory
+    {:ok, _} = Prepx.CLI.main([tmp_dir])
+
+    output_path = Path.join(tmp_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Verify that the empty directory is included in the directory tree
+    assert String.contains?(content, "├── empty_dir")
+    # Verify that there is no file content for the empty directory
+    refute String.contains?(content, "--- File: empty_dir ---")
+  end
+
+  @tag :file_system
+  test "deeply nested directories", %{tmp_dir: tmp_dir} do
+    # Create a deeply nested directory structure
+    nested_dir = Path.join(tmp_dir, "dir1")
+    nested_dir = Path.join(nested_dir, "dir2")
+    nested_dir = Path.join(nested_dir, "dir3")
+    File.mkdir_p!(nested_dir)
+    File.write!(Path.join(nested_dir, "nested_file.txt"), "This is a nested file.")
+
+    # Run prepx from the parent directory
+    {:ok, _} = Prepx.CLI.main([tmp_dir])
+
+    output_path = Path.join(tmp_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Verify that the nested directory structure is correctly displayed in the tree
+    assert String.contains?(content, "│   └── dir1")
+    assert String.contains?(content, "│       └── dir2")
+    assert String.contains?(content, "│           └── dir3")
+    assert String.contains?(content, "│               └── nested_file.txt")
+    # Verify that the content of the nested file is included
+    assert String.contains?(content, "--- File: dir1/dir2/dir3/nested_file.txt ---")
+    assert String.contains?(content, "This is a nested file.")
+  end
+
+  @tag :file_system
+  test "file name edge cases", %{tmp_dir: tmp_dir} do
+    # Create files with spaces and special characters in their names
+    space_file = Path.join(tmp_dir, "file with spaces.txt")
+    special_file = Path.join(tmp_dir, "file!@#$%^&*.txt")
+    File.write!(space_file, "This file has spaces in its name.")
+    File.write!(special_file, "This file has special characters in its name.")
+
+    # Run prepx from the parent directory
+    {:ok, _} = Prepx.CLI.main([tmp_dir])
+
+    output_path = Path.join(tmp_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Verify that the files with spaces and special characters are correctly displayed
+    assert String.contains?(content, "├── file with spaces.txt")
+    assert String.contains?(content, "├── file!@#$%^&*.txt")
+    assert String.contains?(content, "--- File: file with spaces.txt ---")
+    assert String.contains?(content, "--- File: file!@#$%^&*.txt ---")
+    assert String.contains?(content, "This file has spaces in its name.")
+    assert String.contains?(content, "This file has special characters in its name.")
+  end
+
+  @tag :content
+  test "file content encoding", %{tmp_dir: tmp_dir} do
+    # Create a UTF-8 encoded file
+    utf8_file = Path.join(tmp_dir, "utf8_file.txt")
+    File.write!(utf8_file, "This is a UTF-8 file with some special characters: éàçüö.")
+
+    # Run prepx from the parent directory
+    {:ok, _} = Prepx.CLI.main([tmp_dir])
+
+    output_path = Path.join(tmp_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Verify that the UTF-8 content is correctly displayed
+    assert String.contains?(content, "--- File: utf8_file.txt ---")
+    assert String.contains?(content, "This is a UTF-8 file with some special characters: éàçüö.")
+  end
+
+  @tag :git
+  test "git repository boundary detection", %{tmp_dir: tmp_dir} do
+    # Create a directory *outside* the git repository
+    external_dir = Path.join(Path.dirname(tmp_dir), "external_dir")
+    File.mkdir_p!(external_dir)
+    File.write!(Path.join(external_dir, "external_file.txt"), "This is an external file.")
+
+    # Run prepx from the external directory
+    {:ok, _} = Prepx.CLI.main([external_dir])
+
+    output_path = Path.join(external_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Verify that prepx still functions correctly and displays the external file
+    assert String.contains?(content, "Directory Tree:")
+    assert String.contains?(content, "└── external_file.txt")
+    assert String.contains?(content, "--- File: external_file.txt ---")
+    assert String.contains?(content, "This is an external file.")
+  end
+
+  @tag :git
+  test "file path resolution in subdirectories", %{tmp_dir: tmp_dir} do
+    # Setup complex structure
+    setup_repo(tmp_dir)
+    components_dir = Path.join(tmp_dir, "components")
+
+    # Run from components subdirectory
+    {:ok, _} = Prepx.CLI.main([components_dir])
+
+    output_path = Path.join(components_dir, @output_filename)
+    content = File.read!(output_path)
+
+    # Split content into tree and file contents sections
+    [tree_section, file_contents_section] = String.split(content, "File Contents:\n", parts: 2)
+
+    # Check Tree (should only contain button.ex relative to components_dir)
+    assert String.contains?(tree_section, "Directory Tree:")
+    assert String.contains?(tree_section, "└── button.ex")
+    refute String.contains?(tree_section, "../file1.txt")
+
+    # Check Contents (should include files from parent, marked relative)
+    assert String.contains?(file_contents_section, "File Contents:")
+    assert String.contains?(file_contents_section, "--- File: ../.gitignore ---")
+
+    assert String.contains?(
+             file_contents_section,
+             "--- File: ../binary.bin (Binary file ignored) ---"
+           )
+
+    # Test deeper nesting
+    assert String.contains?(file_contents_section, "--- File: ../dir1/dir1file.txt ---")
+    assert String.contains?(file_contents_section, "--- File: ../file1.txt ----")
+    assert String.contains?(file_contents_section, "--- File: button.ex ---")
+
+    # Check actual content
+    assert String.contains?(file_contents_section, "defmodule Button do")
+    assert String.contains?(file_contents_section, "This is file1 content")
+    assert String.contains?(file_contents_section, "ignored.txt")
+  end
+
+  # Helper function to set up our test fixture
+  defp setup_test_fixture(dir) do
+    # Create files in root
+    File.write!(Path.join(dir, "file1.txt"), "This is file1 content")
+    File.write!(Path.join(dir, "binary.bin"), <<0, 1, 2, 3>>)
+    File.write!(Path.join(dir, "ignored.txt"), "This should be ignored")
+
+    # Create directory structure
+    dir1 = Path.join(dir, "dir1")
+    File.mkdir_p!(dir1)
+    File.write!(Path.join(dir1, "dir1file.txt"), "This is dir1file content")
+
+    # Initialize git repository
+    System.cmd("git", ["init"], cd: dir)
+    System.cmd("git", ["add", "file1.txt", "binary.bin", "dir1"], cd: dir)
+
+    # Create .gitignore to exclude ignored.txt
+    File.write!(Path.join(dir, ".gitignore"), "ignored.txt")
+    System.cmd("git", ["add", ".gitignore"], cd: dir)
+
+    # Set git config for the test
+    System.cmd("git", ["config", "user.name", "Test User"], cd: dir)
+    System.cmd("git", ["config", "user.email", "test@example.com"], cd: dir)
+    System.cmd("git", ["commit", "-m", "Initial commit"], cd: dir)
+  end
+
+  defp setup_repo(tmp_dir) do
+    # Create files in root
+    File.write!(Path.join(tmp_dir, "file1.txt"), "This is file1 content")
+    File.write!(Path.join(tmp_dir, "binary.bin"), <<0, 1, 2, 3>>)
+    File.write!(Path.join(tmp_dir, "ignored.txt"), "This should be ignored")
+
+    # Create directory structure
+    dir1 = Path.join(tmp_dir, "dir1")
+    File.mkdir_p!(dir1)
+    File.write!(Path.join(dir1, "dir1file.txt"), "This is dir1file content")
+
+    # Initialize git repository
+    System.cmd("git", ["init"], cd: tmp_dir)
+    System.cmd("git", ["add", "file1.txt", "binary.bin", "dir1"], cd: tmp_dir)
+
+    # Create .gitignore to exclude ignored.txt
+    File.write!(Path.join(tmp_dir, ".gitignore"), "ignored.txt")
+    System.cmd("git", ["add", ".gitignore"], cd: tmp_dir)
+
+    # Set git config for the test
+    System.cmd("git", ["config", "user.name", "Test User"], cd: tmp_dir)
+    System.cmd("git", ["config", "user.email", "test@example.com"], cd: tmp_dir)
+    System.cmd("git", ["commit", "-m", "Initial commit"], cd: tmp_dir)
+  end
+end
+
+```
+--- File: test/test_helper.exs ---
+```
+ExUnit.start()
+
+```

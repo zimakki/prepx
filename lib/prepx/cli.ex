@@ -13,14 +13,15 @@ defmodule Prepx.CLI do
 
   ## Parameters
 
-  * `args` - List of command-line arguments (currently not used)
+  * `_args` - List of command-line arguments (currently not used)
   """
-  def main(args) do
-    {_opts, _args, _invalid} = OptionParser.parse(args, strict: [])
+  def main(_args) do
+    IO.puts("Processing repository...")
 
-    case Prepx.Core.process() do
+    case Prepx.Core.process(Prepx.FileSystemReal) do
       {:ok, output_path} ->
-        IO.puts("Successfully created LLM context file at: #{output_path}")
+        IO.puts("Successfully created LLM context file: #{output_path}")
+        System.halt(0)
 
       {:error, reason} ->
         IO.puts(:stderr, "Error: #{reason}")
