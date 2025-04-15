@@ -256,6 +256,33 @@ defmodule PrepxTest do
     end
   end
 
+  test "directory tree output is human-readable with line breaks", %{tmp_dir: tmp_dir} do
+    original_dir = File.cwd!()
+    File.cd!(tmp_dir)
+
+    try do
+      Prepx.GitBehaviourMock |> stub(:in_git_repo?, fn _ -> true end)
+      {:ok, _} = Prepx.Core.process(Prepx.GitBehaviourMock)
+      output_path = Path.join(tmp_dir, @output_filename)
+      content = File.read!(output_path)
+
+      # Extract the directory tree section
+      [_, tree_section | _] =
+        Regex.run(~r/Directory Tree:\n```(.*?)```/ms, content)
+
+      # Assert that the tree section contains multiple lines (i.e., has line breaks)
+      tree_lines = String.split(tree_section, "\n", trim: true)
+      assert length(tree_lines) > 1
+
+      # Assert that each directory/file appears on its own line (not all jammed together)
+      Enum.each(tree_lines, fn line ->
+        assert String.match?(line, ~r/^[\s│├└─\w\.\-\/]+$/)
+      end)
+    after
+      File.cd!(original_dir)
+    end
+  end
+
   # Helper function to set up our test fixture
   defp setup_test_fixture(tmp_dir) do
     # Create files in root

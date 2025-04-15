@@ -41,7 +41,7 @@ defmodule Prepx.Core do
       end
 
     output =
-      ["Directory Tree:", "```", format_tree(tree_map), "```", "", "File Contents:"] ++
+      ["Directory Tree:", "```", Enum.join(format_tree(tree_map), "\n"), "```", "", "File Contents:"] ++
         Enum.flat_map(tracked_files, fn {abs_path, rel_path} ->
           process_file(abs_path, rel_path)
         end)
