@@ -11,72 +11,60 @@ defmodule Prepx.Core do
   @doc """
   Process the current working directory and create the LLM context file.
 
-  Requires a module implementing FileSystemBehaviour.
+  Requires modules implementing FileSystemBehaviour and GitBehaviour.
 
   ## Returns
 
   * `{:ok, output_path}` - The path to the created context file
   * `{:error, reason}` - An error message if processing failed
   """
-  def process(fs_module \\ Prepx.FileSystemReal) when is_atom(fs_module) do
-    with {:ok, repo_root} <- Prepx.Git.get_git_repo_root(),
-         # Use injected module
-         {:ok, cwd} <- fs_module.cwd(),
-         {:ok, tracked_files} <- Prepx.Git.get_git_tracked_files(repo_root),
-         # Get all files relative to cwd for content generation
-         relative_files_for_content = filter_files_by_cwd(tracked_files, repo_root, cwd),
-         # Filter files for directory tree (only current dir and subdirs)
-         relative_files_for_tree =
-           Enum.reject(relative_files_for_content, &String.starts_with?(&1, "../")),
-         # Build tree using only files at/below cwd
-         {:ok, file_tree} <- build_file_tree(relative_files_for_tree),
-         # Generate output using the full list (including ../) for file content
-         # Pass fs_module
-         {:ok, output_path} <-
-           generate_output_file(fs_module, file_tree, relative_files_for_content, cwd, repo_root) do
-      {:ok, output_path}
-    else
-      {:error, reason} -> {:error, reason}
-    end
-  end
+  def process(git_module \\ Prepx.GitInterface) when is_atom(git_module) do
+    cwd = File.cwd!()
+    all_files = list_all_files(cwd)
 
-  # --- filter_files_by_cwd remains unchanged for now, it only uses Path ---
-  @doc """
-  Convert all tracked file paths (relative to repo root) to paths relative to the current working directory.
-  """
-  def filter_files_by_cwd(files, repo_root, cwd) do
-    expanded_cwd = Path.expand(cwd)
+    tracked_files =
+      all_files
+      |> Enum.filter(&git_module.in_git_repo?/1)
+      |> Enum.map(fn abs_path ->
+        rel_path = Path.relative_to(abs_path, cwd)
+        {abs_path, rel_path}
+      end)
 
-    Enum.map(files, fn file_relative_to_repo ->
-      calculate_relative_path(file_relative_to_repo, repo_root, expanded_cwd, cwd)
-    end)
-  end
-
-  # --- Helper function to calculate relative path --- 
-  defp calculate_relative_path(file_relative_to_repo, repo_root, expanded_cwd, cwd) do
-    abs_path = Path.join(repo_root, file_relative_to_repo)
-    expanded_abs_path = Path.expand(abs_path)
-
-    relative_path = Path.relative_to(expanded_abs_path, expanded_cwd)
-
-    # Fix for Path.relative_to returning absolute paths in some cases (e.g., macOS tmp dirs)
-    if String.starts_with?(relative_path, "/") do
-      # If result is absolute, check if original repo path contains the cwd's dir name
-      if String.contains?(file_relative_to_repo, Path.basename(cwd)) do
-        # Heuristic failed (e.g., file in subdir with same name as parent dir part)
-        # Fallback to the absolute path from Path.relative_to
-        relative_path
-      else
-        # Heuristic: Assume it's one level up if original path doesn't contain cwd base name
-        "../" <> Path.basename(file_relative_to_repo)
+    tree_map =
+      tracked_files
+      |> Enum.map(fn {_, rel_path} -> rel_path end)
+      |> build_file_tree()
+      |> case do
+        {:ok, map} -> map
+        map when is_map(map) -> map
+        _ -> %{}
       end
+
+    output =
+      ["Directory Tree:", "```", Enum.join(format_tree(tree_map), "\n"), "```", "", "File Contents:"] ++
+        Enum.flat_map(tracked_files, fn {abs_path, rel_path} ->
+          process_file(abs_path, rel_path)
+        end)
+
+    output_path = Path.join(cwd, @output_filename)
+    File.write!(output_path, Enum.join(output, "\n"))
+    {:ok, output_path}
+  end
+
+  defp process_file(abs_path, rel_path) do
+    if binary_file?(abs_path) do
+      ["--- File: #{rel_path} (Binary file ignored) ---"]
     else
-      # Path.relative_to returned a relative path, use it
-      relative_path
+      case File.read(abs_path) do
+        {:ok, content} ->
+          ["--- File: #{rel_path} ---", "```", content, "```"]
+
+        {:error, reason} ->
+          ["--- File: #{rel_path} (Error reading file: #{inspect(reason)}) ---"]
+      end
     end
   end
 
-  # --- build_file_tree remains unchanged, it only uses Path/String/Map ---
   @doc """
   Builds a nested map representing the file tree structure.
   Input paths must be relative to the CWD and not contain '../'.
@@ -108,7 +96,6 @@ defmodule Prepx.Core do
     Map.put(current_map, dir, updated_sub_tree)
   end
 
-  # --- format_tree remains unchanged, it only formats the map ---
   @doc """
   Formats the file tree map into a string list for display.
   """
@@ -139,90 +126,38 @@ defmodule Prepx.Core do
     [line | children_lines] ++ do_format_tree(rest, prefix, is_last_parent)
   end
 
-  # --- generate_output_file needs fs_module ---
-  defp generate_output_file(fs_module, file_tree, relative_files_for_content, cwd, repo_root) do
-    output_path = Path.join(cwd, @output_filename)
-    formatted_tree = format_tree(file_tree)
-    # Generate content for all files, including those potentially outside cwd (using ../)
-    file_contents =
-      generate_file_contents(fs_module, relative_files_for_content, cwd, repo_root)
+  defp binary_file?(file_path) do
+    if File.regular?(file_path) do
+      try do
+        {:ok, chunk} =
+          File.open(file_path, [:read], fn file ->
+            IO.binread(file, 1024)
+          end)
 
-    output_content =
-      ["Directory Tree:", "```", formatted_tree, "```", "\nFile Contents:", file_contents]
-      |> List.flatten()
-      |> Enum.join("\n")
-
-    try do
-      _ = fs_module.write!(output_path, output_content)
-      {:ok, output_path}
-    rescue
-      e in File.Error ->
-        {:error, "Failed to write output file #{output_path}: #{inspect(e)}"}
+        is_binary(chunk) and String.contains?(chunk, "\0")
+      rescue
+        _ -> true
+      end
+    else
+      false
     end
   end
 
-  # --- generate_file_contents needs fs_module ---
-  defp generate_file_contents(fs_module, relative_files, cwd, repo_root) do
-    Enum.map(relative_files, fn relative_file ->
-      # Resolve the absolute path correctly for reading
-      absolute_path = resolve_file_path(relative_file, cwd, repo_root)
+  defp list_all_files(dir) do
+    File.ls!(dir)
+    |> Enum.flat_map(fn entry ->
+      path = Path.join(dir, entry)
 
-      if binary_file?(fs_module, absolute_path) do
-        ["--- File: #{relative_file} (Binary file ignored) ---"]
-      else
-        # Assign result to variable first, then return
-        result =
-          try do
-            # Use injected module
-            content = fs_module.read!(absolute_path)
-            ["--- File: #{relative_file} ---", "```", content, "```"]
-          rescue
-            e in File.Error ->
-              # IO.inspect(e, label: "File read error for #{absolute_path}")
-              ["--- File: #{relative_file} (Error reading file: #{inspect(e)}) ---"]
-          end
+      cond do
+        File.dir?(path) ->
+          list_all_files(path)
 
-        # End of try/rescue
+        File.regular?(path) ->
+          [path]
 
-        # Return the result variable
-        result
+        true ->
+          []
       end
     end)
   end
-
-  # --- resolve_file_path remains unchanged, uses Path ---
-  @doc false
-  defp resolve_file_path(relative_file, cwd, _repo_root) do
-    # If relative_file starts with ../, Path.expand/Path.join handles it correctly relative to cwd
-    Path.expand(Path.join(cwd, relative_file))
-  end
-
-  # --- binary_file? needs fs_module ---
-  defp binary_file?(fs_module, file_path) do
-    # First check if it's a regular file, directories/symlinks aren't binary content files
-    # Use injected module
-    if fs_module.regular?(file_path) do
-      # It's a regular file, try reading it
-      try do
-        # Read up to 1024 bytes
-        # Use injected module
-        chunk = fs_module.read!(file_path)
-        # Check for null byte
-        String.contains?(chunk, "\0")
-      rescue
-        # If we can't even read the file, treat it as binary/unreadable
-        File.Error -> true
-      end
-
-      # End of try/rescue
-    else
-      # Not a regular file (dir, symlink etc.) -> treat as binary/ignorable
-      # Treat non-regular files (like dirs, symlinks that might be broken) as ignorable/binary
-      true
-    end
-
-    # End of if/else
-  end
-
-  # End of defp
 end

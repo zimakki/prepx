@@ -1,3 +1,6 @@
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/zimakki/prepx/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 # Prepx
 
 Prepx is a command-line interface (CLI) tool that helps developers consolidate the codebase of a project (or a specific subdirectory within it) into a single text file. The primary use case for this consolidated file is to provide context to Large Language Models (LLMs).
@@ -114,6 +117,8 @@ This will create a file named `llm_context.txt` in your current working director
 
 ### Example Output
 
+_Note: Output snippets are truncated for brevity._
+
 ```
 # Directory Structure
 
@@ -154,6 +159,20 @@ mix test
 - `lib/prepx/cli.ex` - Command-line interface implementation
 - `lib/prepx/core.ex` - Core functionality for file processing and output generation
 - `test/` - Test suite and fixtures
+
+## Contributing
+
+Contributions are welcome! Please open issues or submit pull requests on GitHub. For major changes, please open an issue first to discuss what you would like to change.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/fooBar`)
+3. Commit your changes (`git commit -am 'Add some fooBar'`)
+4. Push to the branch (`git push origin feature/fooBar`)
+5. Create a new Pull Request
+
+## Releases & Changelog
+
+See the [Releases](https://github.com/zimakki/prepx/releases) page for version history and changelog.
 
 ## License
 

@@ -18,14 +18,10 @@ defmodule Prepx.CLI do
   def main(_args) do
     IO.puts("Processing repository...")
 
-    case Prepx.Core.process(Prepx.FileSystemReal) do
+    case Prepx.Core.process() do
       {:ok, output_path} ->
         IO.puts("Successfully created LLM context file: #{output_path}")
         System.halt(0)
-
-      {:error, reason} ->
-        IO.puts(:stderr, "Error: #{reason}")
-        System.halt(1)
     end
   end
 end
