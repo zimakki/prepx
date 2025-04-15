@@ -6,29 +6,6 @@ defmodule Prepx.GitInterface do
   @behaviour Prepx.GitBehaviour
 
   @doc """
-  Get files tracked by Git, respecting .gitignore rules.
-
-  ## Parameters
-
-  * `repo_root` - The absolute path to the Git repository root
-
-  ## Returns
-
-  * `{:ok, file_list}` - A list of tracked files (relative to repo_root)
-  * `{:error, reason}` - An error message if Git command failed
-  """
-  def get_git_tracked_files(repo_root) do
-    case System.cmd("git", ["ls-files", "-co", "--exclude-standard"], cd: repo_root) do
-      {files, 0} ->
-        file_list = files |> String.split("\n", trim: true)
-        {:ok, file_list}
-
-      {error, _} ->
-        {:error, "Failed to list Git files: #{String.trim(error)}"}
-    end
-  end
-
-  @doc """
   Check if a path is inside a git repo and not git-ignored.
   Returns true if the path is in a git repo and not ignored, false otherwise.
   """
