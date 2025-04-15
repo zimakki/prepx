@@ -21,7 +21,7 @@ defmodule Prepx.Core do
   def process(git_module \\ Prepx.GitInterface) when is_atom(git_module) do
     cwd = File.cwd!()
     all_files = list_all_files(cwd)
-    # Pair each file with its absolute and relative path from cwd
+
     tracked_files =
       all_files
       |> Enum.filter(&git_module.in_git_repo?/1)
@@ -30,31 +30,39 @@ defmodule Prepx.Core do
         {abs_path, rel_path}
       end)
 
-    tree_map = build_file_tree(Enum.map(tracked_files, fn {_, rel_path} -> rel_path end))
-    tree_map = case tree_map do
-      {:ok, map} -> map
-      map when is_map(map) -> map
-      _ -> %{}
-    end
+    tree_map =
+      tracked_files
+      |> Enum.map(fn {_, rel_path} -> rel_path end)
+      |> build_file_tree()
+      |> case do
+        {:ok, map} -> map
+        map when is_map(map) -> map
+        _ -> %{}
+      end
 
     output =
       ["Directory Tree:", "```", format_tree(tree_map), "```", "", "File Contents:"] ++
         Enum.flat_map(tracked_files, fn {abs_path, rel_path} ->
-          if binary_file?(abs_path) do
-            ["--- File: #{rel_path} (Binary file ignored) ---"]
-          else
-            case File.read(abs_path) do
-              {:ok, content} ->
-                ["--- File: #{rel_path} ---", "```", content, "```"]
-              {:error, reason} ->
-                ["--- File: #{rel_path} (Error reading file: #{inspect(reason)}) ---"]
-            end
-          end
+          process_file(abs_path, rel_path)
         end)
 
     output_path = Path.join(cwd, @output_filename)
     File.write!(output_path, Enum.join(output, "\n"))
     {:ok, output_path}
+  end
+
+  defp process_file(abs_path, rel_path) do
+    if binary_file?(abs_path) do
+      ["--- File: #{rel_path} (Binary file ignored) ---"]
+    else
+      case File.read(abs_path) do
+        {:ok, content} ->
+          ["--- File: #{rel_path} ---", "```", content, "```"]
+
+        {:error, reason} ->
+          ["--- File: #{rel_path} (Error reading file: #{inspect(reason)}) ---"]
+      end
+    end
   end
 
   # --- filter_files_by_cwd remains unchanged for now, it only uses Path ---
@@ -94,22 +102,21 @@ defmodule Prepx.Core do
   end
 
   defp list_all_files(dir) do
-    case File.ls(dir) do
-      {:ok, entries} ->
-        entries
-        |> Enum.flat_map(fn entry ->
-          path = Path.join(dir, entry)
+    File.ls!(dir)
+    |> Enum.flat_map(fn entry ->
+      path = Path.join(dir, entry)
 
-          if File.dir?(path) do
-            list_all_files(path)
-          else
-            [path]
-          end
-        end)
+      cond do
+        File.dir?(path) ->
+          list_all_files(path)
 
-      {:error, _} ->
-        []
-    end
+        File.regular?(path) ->
+          [path]
+
+        true ->
+          []
+      end
+    end)
   end
 
   # --- build_file_tree remains unchanged, it only uses Path/String/Map ---
@@ -175,46 +182,14 @@ defmodule Prepx.Core do
     [line | children_lines] ++ do_format_tree(rest, prefix, is_last_parent)
   end
 
-  defp generate_file_contents(relative_files, cwd, repo_root) do
-    Enum.map(relative_files, fn relative_file ->
-      # Resolve the absolute path correctly for reading
-      absolute_path = resolve_file_path(relative_file, cwd, repo_root)
-
-      if binary_file?(absolute_path) do
-        ["--- File: #{relative_file} (Binary file ignored) ---"]
-      else
-        case read_file_content(relative_file, cwd) do
-          {:ok, content} ->
-            ["--- File: #{relative_file} ---", "```", content, "```"]
-          {:error, reason} ->
-            ["--- File: #{relative_file} (Error reading file: #{inspect(reason)}) ---"]
-        end
-      end
-    end)
-  end
-
-  defp read_file_content(file_path, cwd) do
-    full_path =
-      case Path.type(file_path) do
-        :absolute -> file_path
-        :relative -> Path.join(cwd, file_path)
-      end
-    File.read(full_path)
-  end
-
-  # --- resolve_file_path remains unchanged, uses Path ---
-  @doc false
-  defp resolve_file_path(relative_file, cwd, _repo_root) do
-    # If relative_file starts with ../, Path.expand/Path.join handles it correctly relative to cwd
-    Path.expand(Path.join(cwd, relative_file))
-  end
-
   defp binary_file?(file_path) do
     if File.regular?(file_path) do
       try do
-        {:ok, chunk} = File.open(file_path, [:read], fn file ->
-          IO.binread(file, 1024)
-        end)
+        {:ok, chunk} =
+          File.open(file_path, [:read], fn file ->
+            IO.binread(file, 1024)
+          end)
+
         is_binary(chunk) and String.contains?(chunk, "\0")
       rescue
         _ -> true
@@ -223,6 +198,4 @@ defmodule Prepx.Core do
       false
     end
   end
-
-  # End of defp
 end

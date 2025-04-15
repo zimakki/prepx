@@ -37,11 +37,13 @@ defmodule PrepxTest do
   test "process from repo root", %{tmp_dir: tmp_dir} do
     original_dir = File.cwd!()
     File.cd!(tmp_dir)
+
     try do
       Prepx.GitBehaviourMock
       |> stub(:in_git_repo?, fn path ->
         not String.ends_with?(path, "ignored.txt")
       end)
+
       {:ok, _} = Prepx.Core.process(Prepx.GitBehaviourMock)
       output_path = Path.join(tmp_dir, @output_filename)
       content = File.read!(output_path)
@@ -63,11 +65,13 @@ defmodule PrepxTest do
     subdir_path = Path.join(tmp_dir, "dir1")
     original_dir = File.cwd!()
     File.cd!(subdir_path)
+
     try do
       Prepx.GitBehaviourMock
       |> stub(:in_git_repo?, fn path ->
         not String.ends_with?(path, "ignored.txt")
       end)
+
       {:ok, _} = Prepx.Core.process(Prepx.GitBehaviourMock)
       output_path = Path.join(subdir_path, @output_filename)
       content = File.read!(output_path)
@@ -83,11 +87,13 @@ defmodule PrepxTest do
   test "gitignore exclusion", %{tmp_dir: tmp_dir} do
     original_dir = File.cwd!()
     File.cd!(tmp_dir)
+
     try do
       Prepx.GitBehaviourMock
       |> stub(:in_git_repo?, fn path ->
         not String.ends_with?(path, "ignored.txt")
       end)
+
       {:ok, _} = Prepx.Core.process(Prepx.GitBehaviourMock)
       output_path = Path.join(tmp_dir, @output_filename)
       content = File.read!(output_path)
@@ -100,6 +106,7 @@ defmodule PrepxTest do
   test "binary file detection", %{tmp_dir: tmp_dir} do
     original_dir = File.cwd!()
     File.cd!(tmp_dir)
+
     try do
       Prepx.GitBehaviourMock |> stub(:in_git_repo?, fn _ -> true end)
       {:ok, _} = Prepx.Core.process(Prepx.GitBehaviourMock)
@@ -117,11 +124,13 @@ defmodule PrepxTest do
     File.mkdir!(empty_dir)
     original_dir = File.cwd!()
     File.cd!(empty_dir)
+
     try do
       Prepx.GitBehaviourMock
       |> stub(:in_git_repo?, fn path ->
         not String.ends_with?(path, "ignored.txt")
       end)
+
       {:ok, _} = Prepx.Core.process(Prepx.GitBehaviourMock)
       output_path = Path.join(empty_dir, @output_filename)
       content = File.read!(output_path)
@@ -138,11 +147,13 @@ defmodule PrepxTest do
     File.write!(nested_file, "This is a nested file.")
     original_dir = File.cwd!()
     File.cd!(nested_dir)
+
     try do
       Prepx.GitBehaviourMock
       |> stub(:in_git_repo?, fn path ->
         not String.ends_with?(path, "ignored.txt")
       end)
+
       {:ok, _} = Prepx.Core.process(Prepx.GitBehaviourMock)
       output_path = Path.join(nested_dir, @output_filename)
       content = File.read!(output_path)
@@ -159,11 +170,13 @@ defmodule PrepxTest do
     File.write!(special_file, "This file has special characters in its name.")
     original_dir = File.cwd!()
     File.cd!(tmp_dir)
+
     try do
       Prepx.GitBehaviourMock
       |> stub(:in_git_repo?, fn path ->
         not String.ends_with?(path, "ignored.txt")
       end)
+
       {:ok, _} = Prepx.Core.process(Prepx.GitBehaviourMock)
       output_path = Path.join(tmp_dir, @output_filename)
       content = File.read!(output_path)
@@ -181,26 +194,33 @@ defmodule PrepxTest do
     File.write!(utf8_file, "This is a UTF-8 file with some special characters: éàçüö.")
     original_dir = File.cwd!()
     File.cd!(tmp_dir)
+
     try do
       Prepx.GitBehaviourMock
       |> stub(:in_git_repo?, fn path ->
         not String.ends_with?(path, "ignored.txt")
       end)
+
       {:ok, _} = Prepx.Core.process(Prepx.GitBehaviourMock)
       output_path = Path.join(tmp_dir, @output_filename)
       content = File.read!(output_path)
-      assert String.contains?(content, "This is a UTF-8 file with some special characters: éàçüö.")
+
+      assert String.contains?(
+               content,
+               "This is a UTF-8 file with some special characters: éàçüö."
+             )
     after
       File.cd!(original_dir)
     end
   end
 
-  test "git repository boundary detection", %{tmp_dir: tmp_dir} do
+  test "git repository boundary detection" do
     external_dir = Path.join(System.tmp_dir!(), "external_dir")
     File.mkdir_p!(external_dir)
     File.write!(Path.join(external_dir, "external_file.txt"), "This is an external file.")
     original_dir = File.cwd!()
     File.cd!(external_dir)
+
     try do
       {:ok, _} = Prepx.Core.process(Prepx.GitInterface)
       output_path = Path.join(external_dir, @output_filename)
@@ -218,11 +238,13 @@ defmodule PrepxTest do
     File.write!(Path.join(components_dir, "component.txt"), "This is a component file.")
     original_dir = File.cwd!()
     File.cd!(components_dir)
+
     try do
       Prepx.GitBehaviourMock
       |> stub(:in_git_repo?, fn path ->
         not String.ends_with?(path, "ignored.txt")
       end)
+
       {:ok, _} = Prepx.Core.process(Prepx.GitBehaviourMock)
       output_path = Path.join(components_dir, @output_filename)
       content = File.read!(output_path)
