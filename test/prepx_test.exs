@@ -24,6 +24,10 @@ defmodule PrepxTest do
     %{tmp_dir: tmp_dir}
   end
 
+  test "failin test" do
+    assert false
+  end
+
   @tag :basic
   test "process from repo root", %{tmp_dir: tmp_dir} do
     # Run from repo root
