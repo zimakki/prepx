@@ -21,3 +21,5 @@ prepx-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+prepx
+llm_context.txt
