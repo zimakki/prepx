@@ -65,61 +65,6 @@ defmodule Prepx.Core do
     end
   end
 
-  # --- filter_files_by_cwd remains unchanged for now, it only uses Path ---
-  @doc """
-  Convert all tracked file paths (relative to repo root) to paths relative to the current working directory.
-  """
-  def filter_files_by_cwd(files, repo_root, cwd) do
-    expanded_cwd = Path.expand(cwd)
-
-    Enum.map(files, fn file_relative_to_repo ->
-      calculate_relative_path(file_relative_to_repo, repo_root, expanded_cwd, cwd)
-    end)
-  end
-
-  # --- Helper function to calculate relative path --- 
-  defp calculate_relative_path(file_relative_to_repo, repo_root, expanded_cwd, cwd) do
-    abs_path = Path.join(repo_root, file_relative_to_repo)
-    expanded_abs_path = Path.expand(abs_path)
-
-    relative_path = Path.relative_to(expanded_abs_path, expanded_cwd)
-
-    # Fix for Path.relative_to returning absolute paths in some cases (e.g., macOS tmp dirs)
-    if String.starts_with?(relative_path, "/") do
-      # If result is absolute, check if original repo path contains the cwd's dir name
-      if String.contains?(file_relative_to_repo, Path.basename(cwd)) do
-        # Heuristic failed (e.g., file in subdir with same name as parent dir part)
-        # Fallback to the absolute path from Path.relative_to
-        relative_path
-      else
-        # Heuristic: Assume it's one level up if original path doesn't contain cwd base name
-        "../" <> Path.basename(file_relative_to_repo)
-      end
-    else
-      # Path.relative_to returned a relative path, use it
-      relative_path
-    end
-  end
-
-  defp list_all_files(dir) do
-    File.ls!(dir)
-    |> Enum.flat_map(fn entry ->
-      path = Path.join(dir, entry)
-
-      cond do
-        File.dir?(path) ->
-          list_all_files(path)
-
-        File.regular?(path) ->
-          [path]
-
-        true ->
-          []
-      end
-    end)
-  end
-
-  # --- build_file_tree remains unchanged, it only uses Path/String/Map ---
   @doc """
   Builds a nested map representing the file tree structure.
   Input paths must be relative to the CWD and not contain '../'.
@@ -151,7 +96,6 @@ defmodule Prepx.Core do
     Map.put(current_map, dir, updated_sub_tree)
   end
 
-  # --- format_tree remains unchanged, it only formats the map ---
   @doc """
   Formats the file tree map into a string list for display.
   """
@@ -197,5 +141,23 @@ defmodule Prepx.Core do
     else
       false
     end
+  end
+
+  defp list_all_files(dir) do
+    File.ls!(dir)
+    |> Enum.flat_map(fn entry ->
+      path = Path.join(dir, entry)
+
+      cond do
+        File.dir?(path) ->
+          list_all_files(path)
+
+        File.regular?(path) ->
+          [path]
+
+        true ->
+          []
+      end
+    end)
   end
 end
